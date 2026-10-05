@@ -33,9 +33,7 @@ export class SubscriptionsService {
     return plans.map((p) => {
       // Les frais opérateurs sont à la charge du client
       // - Mobile Money (NabooPay Wave/Orange Money) : ~2%
-      // - Carte bancaire (Bictorys Visa/Mastercard) : ~2.5%
       const fraisNaboo = Math.round(p.prix * 0.02);
-      const fraisBictorys = Math.round(p.prix * 0.025);
       const totalEstime = p.prix + fraisNaboo;
 
       return {
@@ -56,12 +54,6 @@ export class SubscriptionsService {
             label: "Mobile Money (Wave / Orange Money)",
             methodes: ["WAVE", "ORANGE_MONEY"],
             frais_estimes: fraisNaboo,
-          },
-          {
-            provider: "BICTORYS",
-            label: "Carte Bancaire (Visa / Mastercard)",
-            methodes: ["VISA", "MASTERCARD"],
-            frais_estimes: fraisBictorys,
           },
         ],
       };
@@ -103,6 +95,16 @@ export class SubscriptionsService {
     const paiements = await db.orm.public.Paiement
       .where({ abonnement_id: target.id })
       .all();
+
+    for (const p of paiements) {
+      if (p.statut === "EN_ATTENTE" && paymentsService.isPaymentExpired(p.date_creation)) {
+        p.statut = "EXPIRE";
+        await db.orm.public.Paiement
+          .where({ id: p.id })
+          .update({ statut: "EXPIRE" });
+      }
+    }
+
 
     return {
       id: target.id,
@@ -152,8 +154,8 @@ export class SubscriptionsService {
       throw new AppError("Utilisateur introuvable", 404, "USER_NOT_FOUND");
     }
 
-    // Frais selon canal (NabooPay Wave/OM 2%, Bictorys Visa/Mastercard 2.5%)
-    const tauxFrais = provider === "BICTORYS" ? 0.025 : 0.02;
+    // Frais opérateur NabooPay (Wave / OM : 2%)
+    const tauxFrais = 0.02;
     const fraisOperateur = Math.round(formule.prix * tauxFrais);
     const montantTotal = formule.prix + fraisOperateur;
 
@@ -163,7 +165,7 @@ export class SubscriptionsService {
     const dateFin = now.add({ seconds: durationDays * 24 * 3600 });
 
     // Règle essentielle : l'abonnement est créé en statut EN_ATTENTE
-    // Il ne sera activé qu'après confirmation serveur par NabooPay ou Bictorys
+    // Il ne sera activé qu'après confirmation serveur par NabooPay
     const subscription = await db.orm.public.Abonnement.create({
       id: subscriptionId,
       utilisateur_id: userId,
@@ -178,7 +180,7 @@ export class SubscriptionsService {
       abonnementId: subscription.id,
       montant: formule.prix,
       formuleNom: formule.nom,
-      provider,
+      provider: "NABOOPAY",
       userEmail: user.email,
       userNom: user.nom,
       userPrenom: user.prenom,
@@ -194,8 +196,8 @@ export class SubscriptionsService {
         date_fin: subscription.date_fin.toString(),
       },
       payment,
-      provider,
-      canal: provider === "BICTORYS" ? "CARTE_BANCAIRE (Visa/Mastercard)" : "MOBILE_MONEY (Wave/Orange Money)",
+      provider: "NABOOPAY",
+      canal: "MOBILE_MONEY (Wave/Orange Money)",
       breakdown: {
         prix_formule: formule.prix,
         frais_a_la_charge_du_client: true,
@@ -234,17 +236,17 @@ export class SubscriptionsService {
       .where({ id: userId })
       .first();
 
-    const tauxFrais = provider === "BICTORYS" ? 0.025 : 0.02;
+    const tauxFrais = 0.02;
     const fraisOperateur = Math.round(formule.prix * tauxFrais);
     const montantTotal = formule.prix + fraisOperateur;
 
-    // Création d'un nouveau paiement pour le renouvellement avec le provider sélectionné
+    // Création d'un nouveau paiement pour le renouvellement avec NabooPay
     const payment = await paymentsService.createPayment({
       userId,
       abonnementId: subscription.id,
       montant: formule.prix,
       formuleNom: formule.nom,
-      provider,
+      provider: "NABOOPAY",
       userEmail: user?.email,
       userNom: user?.nom,
       userPrenom: user?.prenom,
@@ -257,8 +259,8 @@ export class SubscriptionsService {
         statut: subscription.statut,
       },
       payment,
-      provider,
-      canal: provider === "BICTORYS" ? "CARTE_BANCAIRE (Visa/Mastercard)" : "MOBILE_MONEY (Wave/Orange Money)",
+      provider: "NABOOPAY",
+      canal: "MOBILE_MONEY (Wave/Orange Money)",
       breakdown: {
         prix_formule: formule.prix,
         frais_a_la_charge_du_client: true,
@@ -271,6 +273,43 @@ export class SubscriptionsService {
       checkout_url: payment.checkout_url,
     };
   }
+
+  /**
+   * Helper central pour vérifier si un utilisateur possède un abonnement actif et non expiré.
+   * Si la date de fin est dépassée, met automatiquement à jour le statut en "EXPIRE".
+   */
+  async hasActiveSubscription(userId: string): Promise<boolean> {
+    if (!userId || typeof userId !== "string") return false;
+
+    const subscriptions = await db.orm.public.Abonnement
+      .where({ utilisateur_id: userId, statut: "ACTIF" })
+      .all();
+
+    if (subscriptions.length === 0) {
+      return false;
+    }
+
+    const now = Temporal.Now.instant();
+    let hasValid = false;
+
+    for (const sub of subscriptions) {
+      const dateFinInstant = Temporal.Instant.from(sub.date_fin.toString());
+      if (Temporal.Instant.compare(dateFinInstant, now) <= 0) {
+        // Expiré
+        sub.statut = "EXPIRE";
+        await db.orm.public.Abonnement
+          .where({ id: sub.id })
+          .update({ statut: "EXPIRE" });
+      } else {
+        hasValid = true;
+      }
+    }
+
+    return hasValid;
+  }
 }
 
 export const subscriptionsService = new SubscriptionsService();
+
+export const hasActiveSubscription = (userId: string): Promise<boolean> =>
+  subscriptionsService.hasActiveSubscription(userId);

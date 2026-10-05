@@ -11,6 +11,7 @@ import { ProfessionalDetailPage } from "./pages/ProfessionalDetailPage";
 import { PublicationsPage } from "./pages/PublicationsPage";
 import { PublicationDetailPage } from "./pages/PublicationDetailPage";
 import { SubscriptionsPage } from "./pages/SubscriptionsPage";
+import { DashboardPage } from "./pages/DashboardPage";
 import { ConversationsPage } from "./pages/ConversationsPage";
 import { ConversationDetailPage } from "./pages/ConversationDetailPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -18,6 +19,9 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminRoute } from "./components/AdminRoute";
 import { AdminReportsPage } from "./pages/admin/AdminReportsPage";
 import { AdminAuditLogsPage } from "./pages/admin/AdminAuditLogsPage";
+import { AdminVerificationsPage } from "./pages/admin/AdminVerificationsPage";
+import { AdminPublicationsPage } from "./pages/admin/AdminPublicationsPage";
+
 
 export const App: React.FC = () => {
   return (
@@ -50,11 +54,35 @@ export const App: React.FC = () => {
             }
           />
           <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/profile"
             element={
               <ProtectedRoute>
                 <ProfilePage />
               </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/verifications"
+            element={
+              <AdminRoute>
+                <AdminVerificationsPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/publications"
+            element={
+              <AdminRoute>
+                <AdminPublicationsPage />
+              </AdminRoute>
             }
           />
           <Route

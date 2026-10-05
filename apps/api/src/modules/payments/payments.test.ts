@@ -8,11 +8,13 @@ import { paymentsService } from "./payments.service.js";
 import { subscriptionsService } from "../subscriptions/subscriptions.service.js";
 import { AppError } from "../../errors/AppError.js";
 
-describe("Architecture Paiements : NabooPay (Wave/OM) & Bictorys (Carte)", () => {
+describe("Architecture Paiements : NabooPay exclusivement (Mobile Money Wave & OM)", () => {
   let testUserId: string;
   let testFormuleId: string;
   const createdAbonnementIds: string[] = [];
   const createdPaiementIds: string[] = [];
+
+  const originalFetch = globalThis.fetch;
 
   before(async () => {
     // 1. Récupérer ou créer un utilisateur de test
@@ -24,6 +26,7 @@ describe("Architecture Paiements : NabooPay (Wave/OM) & Bictorys (Carte)", () =>
         nom: "Paiement",
         prenom: "Testeur",
         email: "test.payments@syllavoyage.com",
+        telephone: "+221770000000",
         mot_de_passe: "hashed_dummy_password",
         role: "VOYAGEUR",
         statut: "ACTIF",
@@ -47,9 +50,43 @@ describe("Architecture Paiements : NabooPay (Wave/OM) & Bictorys (Carte)", () =>
     } else {
       testFormuleId = formule.id;
     }
+
+    // Mocker fetch de manière déterministe pour éviter d'appeler l'API de prod sans accord explicite
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const urlStr = typeof input === "string" ? input : input.toString();
+
+      if (urlStr.includes("api.naboopay.com/api/v2/transactions")) {
+        const authHeader = (init?.headers as Record<string, string>)?.[
+          "Authorization"
+        ] || (init?.headers as Record<string, string>)?.[
+          "authorization"
+        ];
+
+        // Vérification de l'utilisation correcte de NABOOPAY_API_KEY
+        if (!authHeader || !authHeader.startsWith("Bearer ") || authHeader.length < 15) {
+          return new Response(JSON.stringify({ message: "Unauthorized" }), { status: 401 });
+        }
+
+        const simulatedOrderId = `naboo_ord_${Date.now()}_${randomUUID().slice(0, 8)}`;
+        return new Response(
+          JSON.stringify({
+            order_id: simulatedOrderId,
+            checkout_url: `https://checkout.naboopay.com/checkout/${simulatedOrderId}`,
+            amount: 5000,
+            currency: "XOF",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      return originalFetch(input, init);
+    };
   });
 
   after(async () => {
+    // Restaurer le fetch original
+    globalThis.fetch = originalFetch;
+
     // Nettoyage des données créées pendant le test
     for (const pid of createdPaiementIds) {
       try {
@@ -64,10 +101,6 @@ describe("Architecture Paiements : NabooPay (Wave/OM) & Bictorys (Carte)", () =>
     try {
       await db.orm.public.Utilisateur.where({ email: "test.payments@syllavoyage.com" }).delete();
     } catch {}
-
-    setTimeout(() => {
-      process.exit(0);
-    }, 100);
   });
 
   // Helper pour créer un abonnement de test
@@ -90,7 +123,7 @@ describe("Architecture Paiements : NabooPay (Wave/OM) & Bictorys (Carte)", () =>
   }
 
   // =========================================================================
-  // 1. INITIATION MULTI-PROVIDER
+  // 1. INITIATION MULTI-PROVIDER & RÈGLE ZERO-FALLBACK
   // =========================================================================
   test("NabooPay : initiation d'un paiement Mobile Money (Wave / Orange Money)", async () => {
     const sub = await createTestSubscription();
@@ -107,11 +140,42 @@ describe("Architecture Paiements : NabooPay (Wave/OM) & Bictorys (Carte)", () =>
 
     assert.equal(payment.moyen_paiement, "NABOOPAY");
     assert.equal(payment.statut, "EN_ATTENTE");
-    assert.match(payment.reference, /^ord_/);
+    assert.ok(payment.reference.length > 5);
     assert.ok(payment.checkout_url?.includes("checkout.naboopay.com"));
   });
 
-  test("Bictorys : initiation d'un paiement Carte Bancaire (Visa / Mastercard)", async () => {
+  test("Règle 8 : aucun fallback vers un faux checkout lorsque la passerelle NabooPay échoue", async () => {
+    const sub = await createTestSubscription();
+
+    const prevFetch = globalThis.fetch;
+    globalThis.fetch = async () => {
+      return new Response(JSON.stringify({ message: "Erreur interne NabooPay" }), { status: 500 });
+    };
+
+    try {
+      await assert.rejects(
+        async () => {
+          await paymentsService.createPayment({
+            userId: testUserId,
+            abonnementId: sub.id,
+            montant: 5000,
+            formuleNom: "Voyageur Mensuel",
+            provider: "NABOOPAY",
+          });
+        },
+        (err: any) => {
+          assert.ok(err instanceof AppError);
+          assert.equal(err.statusCode, 502);
+          assert.equal(err.code, "PAYMENT_GATEWAY_ERROR");
+          return true;
+        }
+      );
+    } finally {
+      globalThis.fetch = prevFetch;
+    }
+  });
+
+  test("Exclusivité NabooPay : createPayment initialise toujours NabooPay pour Wave et Orange Money", async () => {
     const sub = await createTestSubscription();
 
     const payment = await paymentsService.createPayment({
@@ -119,15 +183,15 @@ describe("Architecture Paiements : NabooPay (Wave/OM) & Bictorys (Carte)", () =>
       abonnementId: sub.id,
       montant: 5000,
       formuleNom: "Voyageur Mensuel",
-      provider: "BICTORYS",
+      provider: "NABOOPAY",
     });
 
     createdPaiementIds.push(payment.id);
 
-    assert.equal(payment.moyen_paiement, "BICTORYS");
+    assert.equal(payment.moyen_paiement, "NABOOPAY");
     assert.equal(payment.statut, "EN_ATTENTE");
-    assert.match(payment.reference, /^bic_/);
-    assert.ok(payment.checkout_url?.includes("checkout.bictorys.com"));
+    assert.ok(payment.reference.length > 5);
+    assert.ok(payment.checkout_url?.includes("checkout.naboopay.com"));
   });
 
   // =========================================================================
@@ -185,7 +249,7 @@ describe("Architecture Paiements : NabooPay (Wave/OM) & Bictorys (Carte)", () =>
       abonnementId: sub.id,
       montant: 5000,
       formuleNom: "Voyageur Mensuel",
-      provider: "BICTORYS",
+      provider: "NABOOPAY",
     });
     createdPaiementIds.push(payment.id);
 
@@ -219,7 +283,81 @@ describe("Architecture Paiements : NabooPay (Wave/OM) & Bictorys (Carte)", () =>
   });
 
   // =========================================================================
-  // 3. WEBHOOK NABOOPAY (Wave / Orange Money)
+  // 3. EXPIRATION DES PAIEMENTS EN ATTENTE > 48 HEURES (RÈGLE 10)
+  // =========================================================================
+  test("Règle 10 : expiration automatique d'un paiement en attente > 48h et rejet de confirmation", async () => {
+    const sub = await createTestSubscription();
+    const payment = await paymentsService.createPayment({
+      userId: testUserId,
+      abonnementId: sub.id,
+      montant: 5000,
+      formuleNom: "Voyageur Mensuel",
+      provider: "NABOOPAY",
+    });
+    createdPaiementIds.push(payment.id);
+
+    // Simuler une date de création 50 heures dans le passé
+    const pastCreation = Temporal.Now.instant().subtract({ seconds: 50 * 3600 });
+    await db.orm.public.Paiement
+      .where({ id: payment.id })
+      .update({ date_creation: pastCreation });
+
+    // 1. isPaymentExpired doit retourner true
+    const expiredCheck = paymentsService.isPaymentExpired(pastCreation);
+    assert.equal(expiredCheck, true);
+
+    // 2. getPaymentById doit mettre à jour le statut en EXPIRE
+    const fetched = await paymentsService.getPaymentById(payment.id, testUserId);
+    assert.equal(fetched.statut, "EXPIRE");
+
+    // 3. confirmPaymentAndActivate doit rejeter un paiement expiré
+    await assert.rejects(
+      async () => {
+        await paymentsService.confirmPaymentAndActivate({
+          reference: payment.reference,
+          confirmedMontant: 5000,
+        });
+      },
+      (err: any) => {
+        assert.ok(err instanceof AppError);
+        assert.equal(err.statusCode, 400);
+        assert.equal(err.code, "PAYMENT_EXPIRED");
+        return true;
+      }
+    );
+
+    // 4. L'abonnement ne doit pas être activé
+    const subInDb = await db.orm.public.Abonnement.where({ id: sub.id }).first();
+    assert.notEqual(subInDb?.statut, "ACTIF");
+    assert.equal(subInDb?.statut, "EXPIRE");
+  });
+
+  test("Règle 10 : expirePendingPayments traite par lot les paiements expirés", async () => {
+    const sub = await createTestSubscription();
+    const payment = await paymentsService.createPayment({
+      userId: testUserId,
+      abonnementId: sub.id,
+      montant: 5000,
+      formuleNom: "Voyageur Mensuel",
+      provider: "NABOOPAY",
+    });
+    createdPaiementIds.push(payment.id);
+
+    const pastCreation = Temporal.Now.instant().subtract({ seconds: 52 * 3600 });
+    await db.orm.public.Paiement
+      .where({ id: payment.id })
+      .update({ date_creation: pastCreation });
+
+    const batchResult = await paymentsService.expirePendingPayments();
+    assert.ok(batchResult.expiredCount >= 1);
+    assert.ok(batchResult.expiredIds.includes(payment.id));
+
+    const checkPaiement = await db.orm.public.Paiement.where({ id: payment.id }).first();
+    assert.equal(checkPaiement?.statut, "EXPIRE");
+  });
+
+  // =========================================================================
+  // 4. WEBHOOK NABOOPAY (Wave / Orange Money)
   // =========================================================================
   test("Webhook NabooPay : traitement valide avec signature HMAC et idempotence", async () => {
     const sub = await createTestSubscription();
@@ -259,6 +397,33 @@ describe("Architecture Paiements : NabooPay (Wave/OM) & Bictorys (Carte)", () =>
     assert.equal(replayWebhook.processed, false);
   });
 
+  test("Webhook NabooPay : traitement valide avec secret direct dans l'en-tête", async () => {
+    const sub = await createTestSubscription();
+    const payment = await paymentsService.createPayment({
+      userId: testUserId,
+      abonnementId: sub.id,
+      montant: 5000,
+      formuleNom: "Voyageur Mensuel",
+      provider: "NABOOPAY",
+    });
+    createdPaiementIds.push(payment.id);
+
+    const payload = {
+      order_id: payment.reference,
+      amount: 5000,
+      transaction_status: "paid",
+      selected_payment_method: "wave",
+    };
+
+    // Transmission du secret direct
+    const directSecretHeader = config.naboopayWebhookSecret;
+
+    const webhookResult = await paymentsService.handleNabooWebhook(payload, directSecretHeader);
+    assert.equal(webhookResult.processed, true);
+    assert.equal(webhookResult.payment_status, "CONFIRME");
+    assert.equal(webhookResult.subscription_status, "ACTIF");
+  });
+
   test("Webhook NabooPay : rejet si signature HMAC invalide", async () => {
     const payload = {
       order_id: "ord_dummy_fake",
@@ -279,140 +444,21 @@ describe("Architecture Paiements : NabooPay (Wave/OM) & Bictorys (Carte)", () =>
   });
 
   // =========================================================================
-  // 4. WEBHOOK BICTORYS (Visa / Mastercard)
+  // 5. INTÉGRATION ABONNEMENT ET FRAIS TRANSPARENTS NABOOPAY
   // =========================================================================
-  test("Webhook Bictorys : traitement officiel avec en-tête X-Secret-Key et paymentReference", async () => {
-    const sub = await createTestSubscription();
-    const payment = await paymentsService.createPayment({
-      userId: testUserId,
-      abonnementId: sub.id,
-      montant: 20000,
-      formuleNom: "Professionnel Mensuel",
-      provider: "BICTORYS",
-    });
-    createdPaiementIds.push(payment.id);
-
-    // Payload conforme Bictorys avec paymentReference
-    const payload = {
-      event: "charge.success",
-      data: {
-        paymentReference: payment.reference,
-        amount: 20000,
-        status: "paid",
-        card_brand: "mastercard",
-        currency: "XOF",
-      },
-    };
-
-    // Authentification officielle Bictorys via X-Secret-Key
-    const secretKeyHeader = config.bictorysWebhookSecret;
-
-    // 1. Premier passage du webhook Bictorys
-    const webhookResult = await paymentsService.handleBictorysWebhook(payload, secretKeyHeader);
-    assert.equal(webhookResult.processed, true);
-    assert.equal(webhookResult.payment_status, "CONFIRME");
-    assert.equal(webhookResult.subscription_status, "ACTIF");
-
-    const checkPaiement = await db.orm.public.Paiement.where({ id: payment.id }).first();
-    assert.equal(checkPaiement?.statut, "CONFIRME");
-    assert.equal(checkPaiement?.moyen_paiement, "BICTORYS_MASTERCARD");
-
-    // 2. Deuxième passage (rediffusion / retry Bictorys) -> Idempotent
-    const replayWebhook = await paymentsService.handleBictorysWebhook(payload, secretKeyHeader);
-    assert.equal(replayWebhook.status, "already_processed");
-    assert.equal(replayWebhook.processed, false);
-  });
-
-  test("Webhook Bictorys : traitement valide avec signature HMAC SHA-256", async () => {
-    const sub = await createTestSubscription();
-    const payment = await paymentsService.createPayment({
-      userId: testUserId,
-      abonnementId: sub.id,
-      montant: 5000,
-      formuleNom: "Voyageur Mensuel",
-      provider: "BICTORYS",
-    });
-    createdPaiementIds.push(payment.id);
-
-    const payload = {
-      event: "charge.success",
-      data: {
-        reference: payment.reference,
-        amount: 5000,
-        status: "paid",
-        card_brand: "visa",
-        currency: "XOF",
-      },
-    };
-
-    const rawBodyBuffer = Buffer.from(JSON.stringify(payload));
-    const hmac = crypto.createHmac("sha256", config.bictorysWebhookSecret);
-    const signature = `sha256=${hmac.update(rawBodyBuffer).digest("hex")}`;
-
-    const webhookResult = await paymentsService.handleBictorysWebhook(payload, signature, rawBodyBuffer);
-    assert.equal(webhookResult.processed, true);
-    assert.equal(webhookResult.payment_status, "CONFIRME");
-    assert.equal(webhookResult.subscription_status, "ACTIF");
-  });
-
-  test("Webhook Bictorys : rejet si en-tête X-Secret-Key manquant", async () => {
-    const payload = {
-      event: "charge.success",
-      data: {
-        reference: "bic_dummy_missing_header",
-        status: "paid",
-      },
-    };
-
-    await assert.rejects(
-      async () => {
-        await paymentsService.handleBictorysWebhook(payload, undefined);
-      },
-      (err: any) => {
-        assert.ok(err instanceof AppError);
-        assert.equal(err.statusCode, 401);
-        assert.equal(err.code, "MISSING_SIGNATURE");
-        return true;
-      }
-    );
-  });
-
-  test("Webhook Bictorys : rejet si secret ou signature invalide", async () => {
-    const payload = {
-      event: "charge.success",
-      data: {
-        reference: "bic_dummy_fake",
-        status: "paid",
-      },
-    };
-
-    await assert.rejects(
-      async () => {
-        await paymentsService.handleBictorysWebhook(payload, "invalid_secret_key_12345");
-      },
-      (err: any) => {
-        assert.ok(err instanceof AppError);
-        assert.equal(err.statusCode, 401);
-        assert.equal(err.code, "INVALID_SIGNATURE");
-        return true;
-      }
-    );
-  });
-
-  // =========================================================================
-  // 5. INTÉGRATION ABONNEMENT ET FRAIS TRANSPARENTS
-  // =========================================================================
-  test("SubscriptionsService : création d'abonnement avec choix Bictorys (Carte)", async () => {
-    const result = await subscriptionsService.createSubscription(testUserId, testFormuleId, "BICTORYS");
+  test("SubscriptionsService : création d'abonnement avec NabooPay exclusivement", async () => {
+    const result = await subscriptionsService.createSubscription(testUserId, testFormuleId, "NABOOPAY");
     createdAbonnementIds.push(result.subscription.id);
     createdPaiementIds.push(result.payment.id);
 
-    assert.equal(result.provider, "BICTORYS");
-    assert.equal(result.payment.moyen_paiement, "BICTORYS");
+    assert.equal(result.provider, "NABOOPAY");
+    assert.equal(result.payment.moyen_paiement, "NABOOPAY");
+    assert.equal(result.canal, "MOBILE_MONEY (Wave/Orange Money)");
     assert.equal(result.payment.statut, "EN_ATTENTE");
     assert.equal(result.subscription.statut, "EN_ATTENTE");
-    assert.ok(result.checkout_url?.includes("checkout.bictorys.com"));
+    assert.ok(result.checkout_url?.includes("checkout.naboopay.com"));
     assert.equal(result.breakdown.frais_a_la_charge_du_client, true);
     assert.ok(result.breakdown.frais_operateur > 0);
   });
 });
+

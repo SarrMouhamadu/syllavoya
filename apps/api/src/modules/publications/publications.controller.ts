@@ -81,6 +81,42 @@ export class PublicationsController {
       next(error);
     }
   }
+
+  async update(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new AppError("Non authentifié", 401, "UNAUTHORIZED");
+      }
+
+      const id = req.params["id"] as string;
+      const publication = await publicationsService.update(id, req.user.id, req.body, req.user.role);
+
+      res.status(200).json({
+        success: true,
+        data: { publication },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new AppError("Non authentifié", 401, "UNAUTHORIZED");
+      }
+
+      const id = req.params["id"] as string;
+      await publicationsService.delete(id, req.user.id, req.user.role);
+
+      res.status(200).json({
+        success: true,
+        message: "Publication supprimée avec succès.",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const publicationsController = new PublicationsController();

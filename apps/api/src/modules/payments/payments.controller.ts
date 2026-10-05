@@ -27,15 +27,12 @@ export class PaymentsController {
         throw new AppError("Non authentifié", 401, "UNAUTHORIZED");
       }
 
-      const { abonnement_id, provider, moyen_paiement } = req.body;
+      const { abonnement_id } = req.body;
       if (!abonnement_id) {
         throw new AppError("L'identifiant de l'abonnement (abonnement_id) est obligatoire", 400, "VALIDATION_ERROR");
       }
 
-      const selectedProvider: PaymentProvider =
-        provider === "BICTORYS" || moyen_paiement === "CARD" || moyen_paiement === "CARTE_BANCAIRE"
-          ? "BICTORYS"
-          : "NABOOPAY";
+      const selectedProvider: PaymentProvider = "NABOOPAY";
 
       const result = await paymentsService.initiatePaymentForSubscription(
         req.user.id,
@@ -52,29 +49,29 @@ export class PaymentsController {
     }
   }
 
-  async handleNabooWebhook(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async expirePendingPayments(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const signature = req.headers["x-signature"] as string | undefined;
-      const rawBody = (req as any).rawBody as Buffer | undefined;
-
-      const result = await paymentsService.handleNabooWebhook(req.body, signature, rawBody);
-
-      res.status(200).json(result);
+      const result = await paymentsService.expirePendingPayments();
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
     } catch (error) {
       next(error);
     }
   }
 
-  async handleBictorysWebhook(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async handleNabooWebhook(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const signature =
-        (req.headers["x-secret-key"] as string | undefined) ||
-        (req.headers["x-bictorys-signature"] as string | undefined) ||
         (req.headers["x-signature"] as string | undefined) ||
+        (req.headers["x-naboo-signature"] as string | undefined) ||
+        (req.headers["x-naboopay-signature"] as string | undefined) ||
+        (req.headers["x-webhook-secret"] as string | undefined) ||
         (req.headers["authorization"] as string | undefined);
       const rawBody = (req as any).rawBody as Buffer | undefined;
 
-      const result = await paymentsService.handleBictorysWebhook(req.body, signature, rawBody);
+      const result = await paymentsService.handleNabooWebhook(req.body, signature, rawBody);
 
       res.status(200).json(result);
     } catch (error) {

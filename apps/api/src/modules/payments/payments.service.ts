@@ -4,7 +4,7 @@ import { db } from "../../db.js";
 import { config } from "../../config/env.js";
 import { AppError } from "../../errors/AppError.js";
 
-export type PaymentProvider = "NABOOPAY" | "BICTORYS";
+export type PaymentProvider = "NABOOPAY";
 
 export interface CreatePaymentParams {
   userId: string;
@@ -67,6 +67,53 @@ export class PaymentsService {
   }
 
   // =========================================================================
+  // =========================================================================
+  // GESTION DE L'EXPIRATION DES PAIEMENTS (> 48 HEURES)
+  // =========================================================================
+  isPaymentExpired(dateCreation: { toString(): string } | string | Date): boolean {
+    try {
+      const now = Temporal.Now.instant();
+      let creationInstant: Temporal.Instant;
+
+      if (dateCreation instanceof Date) {
+        creationInstant = Temporal.Instant.fromEpochMilliseconds(dateCreation.getTime());
+      } else {
+        const creationStr = typeof dateCreation === "string" ? dateCreation : dateCreation.toString();
+        creationInstant = Temporal.Instant.from(creationStr);
+      }
+
+      // Règle 10 : expiration stricte si en attente depuis plus de 48 heures (172 800 secondes)
+      const expiresAt = creationInstant.add({ seconds: 48 * 3600 });
+      return Temporal.Instant.compare(expiresAt, now) <= 0;
+    } catch {
+      return false;
+    }
+  }
+
+  async expirePendingPayments(): Promise<{ expiredCount: number; expiredIds: string[] }> {
+    const pendingPayments = await db.orm.public.Paiement
+      .where({ statut: "EN_ATTENTE" })
+      .all();
+
+    const expiredIds: string[] = [];
+    for (const payment of pendingPayments) {
+      if (this.isPaymentExpired(payment.date_creation)) {
+        await db.orm.public.Paiement
+          .where({ id: payment.id })
+          .update({ statut: "EXPIRE" });
+
+        await db.orm.public.Abonnement
+          .where({ id: payment.abonnement_id, statut: "EN_ATTENTE" })
+          .update({ statut: "EXPIRE" });
+
+        expiredIds.push(payment.id);
+      }
+    }
+
+    return { expiredCount: expiredIds.length, expiredIds };
+  }
+
+  // =========================================================================
   // WORKFLOW COMMUN ET STRICTEMENT IDEMPOTENT DE CONFIRMATION / ACTIVATION
   // =========================================================================
   async confirmPaymentAndActivate(options: ConfirmPaymentOptions): Promise<any> {
@@ -94,6 +141,31 @@ export class PaymentsService {
       };
     }
 
+    // Règle 10 : Si le paiement est en attente depuis > 48h, il est expiré et ne peut plus être confirmé
+    if (payment.statut === "EN_ATTENTE" && this.isPaymentExpired(payment.date_creation)) {
+      await db.orm.public.Paiement
+        .where({ id: payment.id })
+        .update({ statut: "EXPIRE" });
+
+      await db.orm.public.Abonnement
+        .where({ id: payment.abonnement_id, statut: "EN_ATTENTE" })
+        .update({ statut: "EXPIRE" });
+
+      throw new AppError(
+        "Ce paiement est expiré (délai de 48 heures dépassé). L'abonnement ne peut pas être activé.",
+        400,
+        "PAYMENT_EXPIRED"
+      );
+    }
+
+    if (payment.statut === "EXPIRE") {
+      throw new AppError(
+        "Ce paiement a expiré. Impossible de l'activer.",
+        400,
+        "PAYMENT_EXPIRED"
+      );
+    }
+
     const now = Temporal.Now.instant();
     const finalMontant = typeof confirmedMontant === "number" ? confirmedMontant : payment.montant;
     const finalMoyen = moyenPaiement || payment.moyen_paiement;
@@ -108,7 +180,7 @@ export class PaymentsService {
         date_confirmation: now,
       });
 
-    // 4. Activation de l'abonnement associé côté serveur
+    // 4. Activation de l'abonnement associé côté serveur (uniquement après confirmation réelle)
     const abonnement = await db.orm.public.Abonnement
       .where({ id: payment.abonnement_id })
       .first();
@@ -187,118 +259,79 @@ export class PaymentsService {
   }
 
   // =========================================================================
-  // CRÉATION DE PAIEMENT MULTI-PROVIDER (NabooPay vs Bictorys)
+  // CRÉATION DE PAIEMENT (NabooPay - Mobile Money Wave & Orange Money)
   // =========================================================================
   async createPayment(params: CreatePaymentParams): Promise<PaymentResponse> {
     const paymentId = randomUUID();
-    const provider: PaymentProvider = params.provider === "BICTORYS" ? "BICTORYS" : "NABOOPAY";
     const now = Temporal.Now.instant();
 
     let orderId: string;
     let checkoutUrl: string;
-    let moyenPaiementInitial: string;
+    const moyenPaiementInitial = "NABOOPAY";
 
-    if (provider === "BICTORYS") {
-      // -------------------------------------------------------------
-      // BICTORYS = Carte bancaire (Visa / Mastercard)
-      // -------------------------------------------------------------
-      orderId = `bic_${Date.now()}_${randomUUID().slice(0, 8)}`;
-      checkoutUrl = `https://checkout.bictorys.com/pay/${orderId}`;
-      moyenPaiementInitial = "BICTORYS";
-
-      if (config.bictorysApiKey && config.bictorysApiKey.trim()) {
-        try {
-          const response = await fetch(`${config.bictorysBaseUrl}/pay/v1/charges`, {
-            method: "POST",
-            headers: {
-              "X-Api-Key": config.bictorysApiKey.trim(),
-              "Content-Type": "application/json",
-              "Accept": "application/json",
-            },
-            body: JSON.stringify({
-              amount: params.montant,
-              currency: "XOF",
-              paymentReference: orderId,
-              customer: {
-                name: `${params.userPrenom || "Voyageur"} ${params.userNom || "Sylla"}`.trim(),
-                email: params.userEmail || "client@syllavoyage.com",
-                phone: params.userTelephone || "+221770000000",
-                country: "SN",
-                locale: "fr-FR",
+    if (config.naboopayApiKey && config.naboopayApiKey.trim()) {
+      try {
+        const response = await fetch(`${config.naboopayBaseUrl}/api/v2/transactions`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${config.naboopayApiKey.trim()}`,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+          },
+          body: JSON.stringify({
+            method_of_payment: ["wave", "orange_money"],
+            products: [
+              {
+                name: params.formuleNom,
+                price: params.montant,
+                quantity: 1,
+                description: `Abonnement Sylla Voyage - ${params.formuleNom}`,
               },
-              orderDetails: [
-                {
-                  name: `Abonnement Sylla Voyage - ${params.formuleNom}`,
-                  price: params.montant,
-                  quantity: 1,
-                },
-              ],
-            }),
-          });
+            ],
+            customer: {
+              first_name: params.userPrenom || "Voyageur",
+              last_name: params.userNom || "Sylla",
+              phone: params.userTelephone || "+221770000000",
+            },
+            fees_customer_side: true,
+            is_escrow: false,
+          }),
+        });
 
-          if (response.ok) {
-            const data = (await response.json()) as any;
-            if (data.paymentReference || data.reference || data.id || data.charge_id) {
-              orderId = data.paymentReference || data.reference || data.id || data.charge_id;
-            }
-            // Support officiel de redirectUrl pour le Hosted Checkout
-            if (data.redirectUrl || data.redirect_url || data.checkout_url || data.payment_url || data.url) {
-              checkoutUrl = data.redirectUrl || data.redirect_url || data.checkout_url || data.payment_url || data.url;
-            }
-          }
-        } catch {
-          // Fallback hors-ligne / environnement de test
+        if (!response.ok) {
+          const errText = await response.text().catch(() => "");
+          throw new AppError(
+            `Échec de création de la transaction NabooPay (${response.status}): ${errText || response.statusText}`,
+            502,
+            "PAYMENT_GATEWAY_ERROR"
+          );
         }
+
+        const data = (await response.json()) as { order_id?: string; checkout_url?: string };
+        if (!data.order_id || !data.checkout_url) {
+          throw new AppError(
+            "Réponse invalide de la passerelle NabooPay (order_id ou checkout_url manquant)",
+            502,
+            "PAYMENT_GATEWAY_ERROR"
+          );
+        }
+
+        orderId = data.order_id;
+        checkoutUrl = data.checkout_url;
+      } catch (error: any) {
+        if (error instanceof AppError) {
+          throw error;
+        }
+        throw new AppError(
+          `Impossible de communiquer avec la passerelle NabooPay: ${error?.message || "Erreur réseau"}`,
+          502,
+          "PAYMENT_GATEWAY_ERROR"
+        );
       }
     } else {
-      // -------------------------------------------------------------
-      // NABOOPAY = Mobile Money (Wave / Orange Money)
-      // -------------------------------------------------------------
+      // Uniquement si AUCUNE clé n'est configurée (mode test hors-ligne / fallback dev sans clé)
       orderId = `ord_${Date.now()}_${randomUUID().slice(0, 8)}`;
       checkoutUrl = `https://checkout.naboopay.com/checkout/${orderId}`;
-      moyenPaiementInitial = "NABOOPAY";
-
-      if (config.naboopayApiKey && config.naboopayApiKey.trim()) {
-        try {
-          const response = await fetch(`${config.naboopayBaseUrl}/api/v2/transactions`, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${config.naboopayApiKey.trim()}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              method_of_payment: ["wave", "orange_money"],
-              products: [
-                {
-                  name: params.formuleNom,
-                  price: params.montant,
-                  quantity: 1,
-                  description: `Abonnement Sylla Voyage - ${params.formuleNom}`,
-                },
-              ],
-              customer: {
-                first_name: params.userPrenom || "Voyageur",
-                last_name: params.userNom || "Sylla",
-                phone: params.userTelephone || "+221770000000",
-              },
-              fees_customer_side: true,
-              is_escrow: false,
-            }),
-          });
-
-          if (response.ok) {
-            const data = (await response.json()) as { order_id?: string; checkout_url?: string };
-            if (data.order_id) {
-              orderId = data.order_id;
-            }
-            if (data.checkout_url) {
-              checkoutUrl = data.checkout_url;
-            }
-          }
-        } catch {
-          // Fallback hors-ligne / environnement de test
-        }
-      }
     }
 
     const created = await db.orm.public.Paiement.create({
@@ -318,7 +351,7 @@ export class PaymentsService {
   async initiatePaymentForSubscription(
     userId: string,
     abonnementId: string,
-    provider: PaymentProvider = "NABOOPAY"
+    _provider: PaymentProvider = "NABOOPAY"
   ): Promise<any> {
     const subscription = await db.orm.public.Abonnement
       .where({ id: abonnementId, utilisateur_id: userId })
@@ -340,10 +373,8 @@ export class PaymentsService {
       .where({ id: userId })
       .first();
 
-    // Frais opérateurs indicatifs selon le canal :
-    // - Mobile Money (NabooPay Wave/Orange Money) : 2%
-    // - Carte bancaire (Bictorys Visa/Mastercard) : 2.5%
-    const tauxFrais = provider === "BICTORYS" ? 0.025 : 0.02;
+    // Frais opérateurs NabooPay (Wave / OM : 2%)
+    const tauxFrais = 0.02;
     const fraisOperateur = Math.round(formule.prix * tauxFrais);
     const montantTotal = formule.prix + fraisOperateur;
 
@@ -352,7 +383,7 @@ export class PaymentsService {
       abonnementId: subscription.id,
       montant: formule.prix,
       formuleNom: formule.nom,
-      provider,
+      provider: "NABOOPAY",
       userEmail: user?.email,
       userNom: user?.nom,
       userPrenom: user?.prenom,
@@ -361,8 +392,8 @@ export class PaymentsService {
 
     return {
       payment,
-      provider,
-      canal: provider === "BICTORYS" ? "CARTE_BANCAIRE (Visa/Mastercard)" : "MOBILE_MONEY (Wave/Orange Money)",
+      provider: "NABOOPAY",
+      canal: "MOBILE_MONEY (Wave/Orange Money)",
       breakdown: {
         prix_formule: formule.prix,
         frais_a_la_charge_du_client: true,
@@ -397,6 +428,18 @@ export class PaymentsService {
       throw new AppError("Accès non autorisé à ce paiement", 403, "FORBIDDEN");
     }
 
+    // Auto-expiration si le paiement est en attente depuis plus de 48 heures
+    if (payment.statut === "EN_ATTENTE" && this.isPaymentExpired(payment.date_creation)) {
+      await db.orm.public.Paiement
+        .where({ id: payment.id })
+        .update({ statut: "EXPIRE" });
+      payment.statut = "EXPIRE";
+
+      await db.orm.public.Abonnement
+        .where({ id: abonnement.id, statut: "EN_ATTENTE" })
+        .update({ statut: "EXPIRE" });
+    }
+
     return this.formatPayment(payment);
   }
 
@@ -404,22 +447,35 @@ export class PaymentsService {
   // WEBHOOK NABOOPAY (Wave / Orange Money)
   // =========================================================================
   async handleNabooWebhook(payload: any, signatureHeader?: string, rawBodyBuffer?: Buffer): Promise<any> {
-    // 1. Vérification de la signature HMAC SHA-256
+    // 1. Vérification de la signature HMAC SHA-256 ou clé secrète
     if (config.naboopayWebhookSecret) {
       if (!signatureHeader) {
-        throw new AppError("En-tête X-Signature manquant", 401, "MISSING_SIGNATURE");
+        throw new AppError("En-tête de signature du webhook NabooPay manquant", 401, "MISSING_SIGNATURE");
       }
 
-      const cleanSignature = signatureHeader.replace(/^sha256=/, "").trim();
-      const hmac = crypto.createHmac("sha256", config.naboopayWebhookSecret);
-      const computed = rawBodyBuffer
-        ? hmac.update(rawBodyBuffer).digest("hex")
-        : hmac.update(JSON.stringify(payload)).digest("hex");
+      const cleanSignature = signatureHeader.replace(/^Bearer\s+/i, "").replace(/^sha256=/, "").trim();
+      const expectedSecret = config.naboopayWebhookSecret.trim();
 
-      if (
-        cleanSignature.length !== computed.length ||
-        !crypto.timingSafeEqual(Buffer.from(cleanSignature), Buffer.from(computed))
-      ) {
+      let isValid = false;
+
+      // 1.1 Comparaison directe à temps constant avec le secret configuré
+      if (cleanSignature.length === expectedSecret.length) {
+        isValid = crypto.timingSafeEqual(Buffer.from(cleanSignature), Buffer.from(expectedSecret));
+      }
+
+      // 1.2 Signature HMAC SHA-256
+      if (!isValid) {
+        const hmac = crypto.createHmac("sha256", expectedSecret);
+        const computed = rawBodyBuffer
+          ? hmac.update(rawBodyBuffer).digest("hex")
+          : hmac.update(JSON.stringify(payload)).digest("hex");
+
+        if (cleanSignature.length === computed.length) {
+          isValid = crypto.timingSafeEqual(Buffer.from(cleanSignature), Buffer.from(computed));
+        }
+      }
+
+      if (!isValid) {
         throw new AppError("Signature du webhook invalide", 401, "INVALID_SIGNATURE");
       }
     }
@@ -447,6 +503,11 @@ export class PaymentsService {
       "echoue"
     ].includes(rawStatus);
 
+    const isExpired = [
+      "expired",
+      "expire"
+    ].includes(rawStatus);
+
     if (isSuccess) {
       const moyenPaiement = payload.selected_payment_method
         ? `NABOOPAY_${payload.selected_payment_method.toUpperCase()}`
@@ -460,100 +521,23 @@ export class PaymentsService {
       });
     } else if (isFailure) {
       return this.failPayment({ reference: orderId });
+    } else if (isExpired) {
+      const payment = await db.orm.public.Paiement.where({ reference: orderId }).first();
+      if (payment && payment.statut !== "CONFIRME") {
+        await db.orm.public.Paiement.where({ id: payment.id }).update({ statut: "EXPIRE" });
+        await db.orm.public.Abonnement.where({ id: payment.abonnement_id, statut: "EN_ATTENTE" }).update({ statut: "EXPIRE" });
+      }
+      return {
+        status: "expired",
+        reference: orderId,
+        payment_status: "EXPIRE",
+      };
     }
 
     const payment = await db.orm.public.Paiement.where({ reference: orderId }).first();
     return {
       status: "received",
       reference: orderId,
-      payment_status: payment?.statut || "EN_ATTENTE",
-    };
-  }
-
-  // =========================================================================
-  // WEBHOOK BICTORYS (Visa / Mastercard)
-  // =========================================================================
-  async handleBictorysWebhook(payload: any, secretKeyHeader?: string, rawBodyBuffer?: Buffer): Promise<any> {
-    // 1. Vérification officielle du secret de webhook Bictorys (X-Secret-Key)
-    if (config.bictorysWebhookSecret) {
-      if (!secretKeyHeader) {
-        throw new AppError("En-tête X-Secret-Key manquant pour le webhook Bictorys", 401, "MISSING_SIGNATURE");
-      }
-
-      const cleanKey = secretKeyHeader.replace(/^Bearer\s+/i, "").replace(/^sha256=/, "").trim();
-      const expectedSecret = config.bictorysWebhookSecret.trim();
-
-      let isValid = false;
-
-      // 1.1 Comparaison directe à temps constant avec le secret configuré (convention Bictorys X-Secret-Key)
-      if (cleanKey.length === expectedSecret.length) {
-        isValid = crypto.timingSafeEqual(Buffer.from(cleanKey), Buffer.from(expectedSecret));
-      }
-
-      // 1.2 Si signature HMAC-SHA256 transmise
-      if (!isValid) {
-        const hmac = crypto.createHmac("sha256", expectedSecret);
-        const computed = rawBodyBuffer
-          ? hmac.update(rawBodyBuffer).digest("hex")
-          : hmac.update(JSON.stringify(payload)).digest("hex");
-
-        if (cleanKey.length === computed.length) {
-          isValid = crypto.timingSafeEqual(Buffer.from(cleanKey), Buffer.from(computed));
-        }
-      }
-
-      if (!isValid) {
-        throw new AppError("Clé ou signature du webhook Bictorys invalide", 401, "INVALID_SIGNATURE");
-      }
-    }
-
-    const data = payload.data || payload;
-    const reference =
-      data.paymentReference ||
-      data.reference ||
-      data.order_id ||
-      payload.paymentReference ||
-      payload.reference ||
-      payload.order_id ||
-      payload.charge_id;
-
-    if (!reference) {
-      throw new AppError("Référence de commande manquante dans le webhook Bictorys", 400, "VALIDATION_ERROR");
-    }
-
-    const rawEvent = (payload.event || "").toLowerCase();
-    const rawStatus = (data.status || payload.status || "").toLowerCase();
-
-    const isSuccess =
-      rawEvent.includes("success") ||
-      rawEvent.includes("completed") ||
-      ["success", "successful", "paid", "completed", "succeeded"].includes(rawStatus);
-
-    const isFailure =
-      rawEvent.includes("failed") ||
-      rawEvent.includes("cancelled") ||
-      rawEvent.includes("declined") ||
-      ["failed", "cancelled", "canceled", "declined", "expired"].includes(rawStatus);
-
-    if (isSuccess) {
-      const brand = (data.card_brand || data.brand || "CARD").toUpperCase();
-      const moyenPaiement = `BICTORYS_${brand}`;
-      const confirmedMontant = typeof data.amount === "number" ? data.amount : undefined;
-
-      return this.confirmPaymentAndActivate({
-        reference,
-        confirmedMontant,
-        moyenPaiement,
-        provider: "BICTORYS",
-      });
-    } else if (isFailure) {
-      return this.failPayment({ reference });
-    }
-
-    const payment = await db.orm.public.Paiement.where({ reference }).first();
-    return {
-      status: "received",
-      reference,
       payment_status: payment?.statut || "EN_ATTENTE",
     };
   }

@@ -1,7 +1,7 @@
 import { apiFetch } from "./client";
 
 export interface PaymentChannel {
-  provider: "NABOOPAY" | "BICTORYS";
+  provider: "NABOOPAY";
   label: string;
   methodes: string[];
   frais_estimes: number;
@@ -66,7 +66,7 @@ export interface CreateSubscriptionResult {
     date_fin?: string;
   };
   payment: SubscriptionPayment;
-  provider: "NABOOPAY" | "BICTORYS";
+  provider: "NABOOPAY";
   canal: string;
   breakdown: PaymentBreakdown;
   checkout_url?: string;
@@ -74,11 +74,11 @@ export interface CreateSubscriptionResult {
 
 export interface CreateSubscriptionParams {
   formule_id: string;
-  provider?: "NABOOPAY" | "BICTORYS";
+  provider?: "NABOOPAY";
 }
 
 export interface RenewSubscriptionParams {
-  provider?: "NABOOPAY" | "BICTORYS";
+  provider?: "NABOOPAY";
 }
 
 export const subscriptionsApi = {

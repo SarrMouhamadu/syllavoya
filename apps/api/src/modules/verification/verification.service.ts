@@ -1,11 +1,15 @@
 import { randomUUID } from "node:crypto";
+import path from "node:path";
+import fs from "node:fs";
+import { Response } from "express";
 import { Temporal } from "temporal-polyfill";
 import { db } from "../../db.js";
 import { AppError } from "../../errors/AppError.js";
+import { UPLOAD_DIR } from "../../middleware/upload.js";
 
 export interface SubmitDocumentDTO {
   type_document: string;
-  fichier: string;
+  fichier?: string;
 }
 
 export interface DocumentResponse {
@@ -27,12 +31,17 @@ export interface VerificationResponse {
 }
 
 export class VerificationService {
-  async submitDocument(userId: string, data: SubmitDocumentDTO): Promise<DocumentResponse> {
+  async submitDocument(
+    userId: string,
+    data: SubmitDocumentDTO,
+    file?: { filename: string; mimetype: string; size: number }
+  ): Promise<DocumentResponse> {
     if (!data.type_document || typeof data.type_document !== "string" || !data.type_document.trim()) {
       throw new AppError("Le type de document est obligatoire (ex: RCCM, NINEA, PIECE_IDENTITE)", 400, "VALIDATION_ERROR");
     }
 
-    if (!data.fichier || typeof data.fichier !== "string" || !data.fichier.trim()) {
+    const filename = file?.filename || (typeof data.fichier === "string" ? data.fichier.trim() : "");
+    if (!filename) {
       throw new AppError("Le fichier est obligatoire", 400, "VALIDATION_ERROR");
     }
 
@@ -51,7 +60,7 @@ export class VerificationService {
       id: docId,
       professionnel_id: pro.id,
       type_document: data.type_document.trim(),
-      fichier: data.fichier.trim(),
+      fichier: filename,
       statut: "EN_ATTENTE",
       created_at: now,
     });
@@ -106,6 +115,62 @@ export class VerificationService {
         created_at: d.created_at.toString(),
       })),
     };
+  }
+
+  /**
+   * Consulter / télécharger une pièce d'identité ou un document de vérification.
+   * Règle stricte : accès réservé au propriétaire du document et à l'administrateur.
+   */
+  async serveDocumentFile(
+    documentId: string,
+    requestingUserId: string,
+    requestingUserRole: string,
+    res: Response
+  ): Promise<void> {
+    const doc = await db.orm.public.DocumentVerification
+      .where({ id: documentId })
+      .first();
+
+    if (!doc) {
+      throw new AppError("Document de vérification introuvable", 404, "DOCUMENT_NOT_FOUND");
+    }
+
+    const pro = await db.orm.public.Professionnel
+      .where({ id: doc.professionnel_id })
+      .first();
+
+    if (!pro) {
+      throw new AppError("Professionnel associé introuvable", 404, "PROFESSIONAL_NOT_FOUND");
+    }
+
+    // Contrôle d'accès strict côté serveur
+    const isOwner = pro.utilisateur_id === requestingUserId;
+    const isAdmin = requestingUserRole === "ADMIN";
+
+    if (!isOwner && !isAdmin) {
+      throw new AppError("Accès refusé : vous n'avez pas l'autorisation d'accéder à ce document", 403, "FORBIDDEN");
+    }
+
+    // Résolution sécurisée du fichier dans l'espace privé
+    const safeFilename = path.basename(doc.fichier);
+    const filePath = path.resolve(UPLOAD_DIR, safeFilename);
+
+    if (!fs.existsSync(filePath)) {
+      throw new AppError("Le fichier physique est introuvable sur le serveur", 404, "FILE_NOT_FOUND");
+    }
+
+    const ext = path.extname(filePath).toLowerCase();
+    let contentType = "application/octet-stream";
+    if (ext === ".pdf") contentType = "application/pdf";
+    else if (ext === ".png") contentType = "image/png";
+    else if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Disposition", `inline; filename="${safeFilename}"`);
+    res.setHeader("Cache-Control", "private, no-cache, no-store, must-revalidate");
+
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
   }
 }
 

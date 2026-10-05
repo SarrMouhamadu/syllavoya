@@ -4,6 +4,13 @@ import { publicationsApi, type ApiPublication } from "../api/publications";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { Alert } from "../components/Alert";
 import { EmptyState } from "../components/EmptyState";
+import {
+  IconFileText,
+  IconBuilding,
+  IconCalendar,
+  IconRefresh,
+  IconArrowRight,
+} from "../components/Icons";
 
 export const PublicationsPage: React.FC = () => {
   const [publications, setPublications] = useState<ApiPublication[]>([]);
@@ -36,10 +43,10 @@ export const PublicationsPage: React.FC = () => {
       <div className="container">
         {/* Header de section */}
         <div className="page-header">
-          <span className="page-badge">📖 Informations & Conseils</span>
-          <h1 className="page-title">Publications & Guides de Voyage</h1>
+          <span className="page-header-badge">Guides & Conseils</span>
+          <h1 className="page-title">Publications & Conseils de Voyage</h1>
           <p className="page-subtitle">
-            Circuits, bons plans et conseils rédigés par les professionnels certifiés de Sylla Voyage.
+            Circuits, recommandations et informations rédigés par les professionnels certifiés de Sylla Voyage.
           </p>
         </div>
 
@@ -58,9 +65,10 @@ export const PublicationsPage: React.FC = () => {
               type="button"
               className="btn btn-outline"
               onClick={fetchPublications}
-              style={{ marginTop: "12px" }}
+              style={{ marginTop: "14px" }}
             >
-              🔄 Réessayer
+              <IconRefresh size={16} />
+              <span>Réessayer</span>
             </button>
           </div>
         )}
@@ -69,7 +77,7 @@ export const PublicationsPage: React.FC = () => {
         {!loading && !error && publications.length === 0 && (
           <div className="state-container">
             <EmptyState
-              icon="📖"
+              icon={<IconFileText size={40} />}
               title="Aucune publication disponible pour le moment"
               description="Les professionnels vérifiés publieront très prochainement leurs itinéraires et informations de voyage."
             />
@@ -95,7 +103,8 @@ export const PublicationsPage: React.FC = () => {
                     <span className="pub-tag">Circuit & Conseils</span>
                     {pub.professionnel && (
                       <span className="pub-author">
-                        🏢 {pub.professionnel.nom_structure}
+                        <IconBuilding size={14} />
+                        <span>{pub.professionnel.nom_structure}</span>
                       </span>
                     )}
                   </div>
@@ -106,14 +115,18 @@ export const PublicationsPage: React.FC = () => {
 
                   <div className="pub-card-footer">
                     {formattedDate && (
-                      <span className="pub-date">🗓️ Publié le {formattedDate}</span>
+                      <span className="pub-date">
+                        <IconCalendar size={14} />
+                        <span>Publié le {formattedDate}</span>
+                      </span>
                     )}
                     <Link
                       to={`/publications/${pub.id}`}
                       className="btn btn-primary btn-block btn-lg"
                       id={`read-pub-${pub.id}`}
                     >
-                      Lire la publication
+                      <span>Lire la suite</span>
+                      <IconArrowRight size={14} />
                     </Link>
                   </div>
                 </article>

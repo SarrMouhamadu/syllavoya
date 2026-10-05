@@ -8,11 +8,39 @@ import { errorHandler } from "./middleware/errorHandler.js";
 
 export const app = express();
 
-// Configuration CORS restrictive
-const allowedOrigins = (config.frontendUrl || "")
+// Sécurité Express : désactivation de l'en-tête X-Powered-By
+app.disable("x-powered-by");
+app.set("trust proxy", 1);
+
+// Configuration CORS restrictive basée sur FRONTEND_URL
+const configuredOrigins = (config.frontendUrl || "")
   .split(",")
   .map((url) => url.trim().replace(/\/$/, ""))
   .filter(Boolean);
+
+const allowedOrigins: string[] = [];
+for (const origin of configuredOrigins) {
+  if (!allowedOrigins.includes(origin)) {
+    allowedOrigins.push(origin);
+  }
+  // Accepter automatiquement la variante www / apex si annonyme.pro est configuré
+  try {
+    const parsed = new URL(origin);
+    if (parsed.hostname === "annonyme.pro") {
+      const wwwOrigin = `${parsed.protocol}//www.${parsed.hostname}${parsed.port ? `:${parsed.port}` : ""}`;
+      if (!allowedOrigins.includes(wwwOrigin)) {
+        allowedOrigins.push(wwwOrigin);
+      }
+    } else if (parsed.hostname === "www.annonyme.pro") {
+      const apexOrigin = `${parsed.protocol}//annonyme.pro${parsed.port ? `:${parsed.port}` : ""}`;
+      if (!allowedOrigins.includes(apexOrigin)) {
+        allowedOrigins.push(apexOrigin);
+      }
+    }
+  } catch {
+    // Ignorer URL invalide
+  }
+}
 
 // En environnement hors-production, préserver le développement local
 if (config.nodeEnv !== "production") {

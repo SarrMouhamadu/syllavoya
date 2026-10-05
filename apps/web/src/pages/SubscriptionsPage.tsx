@@ -1,66 +1,77 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   subscriptionsApi,
   type SubscriptionPlan,
   type UserSubscription,
   type CreateSubscriptionResult,
+  type PaymentChannel,
 } from "../api/subscriptions";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { Alert } from "../components/Alert";
+import {
+  IconShieldCheck,
+  IconCheck,
+  IconAlertTriangle,
+  IconRefresh,
+  IconCompass,
+  IconBuilding,
+  IconX,
+  IconCreditCard,
+  IconPhone,
+  IconFileText,
+  IconLock,
+} from "../components/Icons";
 
 export const SubscriptionsPage: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
-  // Données
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [mySubscription, setMySubscription] = useState<UserSubscription | null>(null);
-
-  // États de chargement et d'erreur
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Sélection pour visiteurs non connectés (toggle Voyageur / Pro)
-  const [unauthRole, setUnauthRole] = useState<"VOYAGEUR" | "PROFESSIONNEL">("VOYAGEUR");
-
-  // Étape de paiement
+  // Formule en cours de sélection pour paiement
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
-  const [selectedProvider, setSelectedProvider] = useState<"NABOOPAY" | "BICTORYS">("NABOOPAY");
+  const [selectedProvider] = useState<"NABOOPAY">("NABOOPAY");
   const [paymentSubmitting, setPaymentSubmitting] = useState<boolean>(false);
   const [paymentResult, setPaymentResult] = useState<CreateSubscriptionResult | null>(null);
-  const [paymentVerificationStatus, setPaymentVerificationStatus] = useState<string | null>(null);
-  const [verifyingPayment, setVerifyingPayment] = useState<boolean>(false);
 
-  // Charger les formules et l'abonnement actuel
+  // État de vérification manuelle d'un paiement en cours
+  const [verifyingPayment, setVerifyingPayment] = useState<boolean>(false);
+  const [paymentVerificationStatus, setPaymentVerificationStatus] = useState<string | null>(null);
+
+  // Rôle sélectionné pour les visiteurs non connectés
+  const [unauthRole, setUnauthRole] = useState<"VOYAGEUR" | "PROFESSIONNEL">("VOYAGEUR");
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // 1. Charger les formules disponibles
+      // 1. Récupérer toutes les formules actives
       const plansRes = await subscriptionsApi.listPlans();
       if (plansRes.success && plansRes.data?.plans) {
         setPlans(plansRes.data.plans);
       }
 
-      // 2. Charger l'abonnement du compte si connecté
+      // 2. Si connecté, récupérer son abonnement actif/récent
       if (isAuthenticated) {
         try {
           const subRes = await subscriptionsApi.getMySubscription();
-          if (subRes.success) {
+          if (subRes.success && subRes.data?.subscription) {
             setMySubscription(subRes.data.subscription);
           }
         } catch {
-          // Erreur non bloquante pour l'abonnement
+          // Aucun abonnement actif
+          setMySubscription(null);
         }
       }
     } catch (err: any) {
       setError(
-        err?.message ||
-          "Impossible de charger les formules d'abonnement. Veuillez vérifier votre connexion."
+        err?.message || "Impossible de charger les offres d'abonnement. Veuillez réessayer."
       );
     } finally {
       setLoading(false);
@@ -71,135 +82,104 @@ export const SubscriptionsPage: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
-  // Filtrage des formules selon le rôle ou le choix du visiteur
+  // Filtrer les formules selon le rôle de l'utilisateur ou le filtre visiteur
   const effectiveRole = isAuthenticated && user ? user.role : unauthRole;
-  const filteredPlans = plans.filter((p) => p.type_utilisateur === effectiveRole);
+  const filteredPlans = plans.filter((p) => {
+    if (effectiveRole === "ADMIN") return true;
+    return p.type_utilisateur === effectiveRole;
+  });
 
-  // Vérifier si l'utilisateur a un abonnement actif
   const hasActiveSub = mySubscription?.statut === "ACTIF";
   const hasExpiredSub = mySubscription?.statut === "EXPIRE";
-  const hasPendingSub = mySubscription?.statut === "EN_ATTENTE";
+  const hasPendingSub = mySubscription?.statut === "EN_ATTENTE_PAIEMENT";
 
-  // Formattage date
-  const formatDate = (dateStr?: string) => {
+  const handleSelectPlan = (plan: SubscriptionPlan) => {
+    if (!isAuthenticated) {
+      navigate("/login", {
+        state: { from: { pathname: "/subscriptions" } },
+      });
+      return;
+    }
+    setSelectedPlan(plan);
+    setPaymentResult(null);
+    setPaymentVerificationStatus(null);
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!selectedPlan) return;
+    try {
+      setPaymentSubmitting(true);
+      setError(null);
+      const res = await subscriptionsApi.createSubscription({
+        formule_id: selectedPlan.id,
+        provider: selectedProvider,
+      });
+      if (res.success && res.data) {
+        setPaymentResult(res.data);
+      }
+    } catch (err: any) {
+      setError(err?.message || "Erreur lors de l'initialisation du paiement.");
+    } finally {
+      setPaymentSubmitting(false);
+    }
+  };
+
+  const handleVerifyPayment = async () => {
+    if (!paymentResult?.payment?.id) return;
+    try {
+      setVerifyingPayment(true);
+      const res = await subscriptionsApi.getPayment(paymentResult.payment.id);
+      if (res.success && res.data?.payment) {
+        setPaymentVerificationStatus(res.data.payment.statut);
+        if (res.data.payment.statut === "CONFIRME") {
+          await fetchData();
+        }
+      }
+    } catch (err: any) {
+      setError(err?.message || "Impossible de vérifier le paiement pour le moment.");
+    } finally {
+      setVerifyingPayment(false);
+    }
+  };
+
+
+  const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return "-";
     try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString("fr-FR", {
-        day: "numeric",
-        month: "long",
+      return new Date(dateStr).toLocaleDateString("fr-FR", {
         year: "numeric",
+        month: "long",
+        day: "numeric",
       });
     } catch {
       return dateStr;
     }
   };
 
-  // Gestion du choix d'une formule
-  const handleSelectPlan = (plan: SubscriptionPlan) => {
-    if (!isAuthenticated) {
-      // Rediriger vers la page de connexion
-      navigate("/login", {
-        state: { from: location, message: "Connectez-vous pour souscrire à cet abonnement." },
-      });
-      return;
-    }
-
-    setSelectedPlan(plan);
-    setPaymentResult(null);
-    setPaymentVerificationStatus(null);
-    setSelectedProvider("NABOOPAY"); // Défaut Wave/OM
-  };
-
-  // Récupérer le coût et les frais réels retournés par le backend pour le canal sélectionné
   const getSelectedBreakdown = () => {
     if (!selectedPlan) return null;
     const channel = selectedPlan.canaux_paiement_supportes?.find(
-      (c) => c.provider === selectedProvider
+      (c: PaymentChannel) => c.provider === selectedProvider
     );
-    const frais = channel ? channel.frais_estimes : (selectedPlan.frais_operateur ?? 0);
-    const total = selectedPlan.prix + frais;
-    const isBictorys = selectedProvider === "BICTORYS";
+    if (!channel) return null;
     return {
       prix: selectedPlan.prix,
-      frais,
-      total,
+      frais: channel.frais_estimes,
+      total: selectedPlan.montant_total || (selectedPlan.prix + (selectedPlan.frais_a_la_charge_du_client ? channel.frais_estimes : 0)),
       provider: selectedProvider,
-      label:
-        channel?.label ||
-        (isBictorys
-          ? "Carte Bancaire (Visa / Mastercard)"
-          : "Mobile Money (Wave / Orange Money)"),
+      canalNom: channel.label,
     };
-  };
-
-  // Initialisation du paiement auprès du backend (source de vérité)
-  const handleConfirmPayment = async () => {
-    if (!selectedPlan) return;
-
-    try {
-      setPaymentSubmitting(true);
-      setError(null);
-
-      // Si l'abonnement actuel a expiré et qu'on renouvelle la même formule
-      let result: CreateSubscriptionResult;
-      if (hasExpiredSub && mySubscription?.id && mySubscription.formule?.id === selectedPlan.id) {
-        const res = await subscriptionsApi.renewSubscription(mySubscription.id, {
-          provider: selectedProvider,
-        });
-        result = res.data;
-      } else {
-        const res = await subscriptionsApi.createSubscription({
-          formule_id: selectedPlan.id,
-          provider: selectedProvider,
-        });
-        result = res.data;
-      }
-
-      setPaymentResult(result);
-      setPaymentVerificationStatus("EN_ATTENTE");
-      // Rafraîchir l'état local depuis le serveur
-      await fetchData();
-    } catch (err: any) {
-      setError(err?.message || "Erreur lors de l'initialisation du paiement. Veuillez réessayer.");
-    } finally {
-      setPaymentSubmitting(false);
-    }
-  };
-
-  // Vérifier la confirmation côté serveur (le frontend ne confirme jamais seul)
-  const handleVerifyPayment = async () => {
-    if (!paymentResult?.payment?.id) return;
-
-    try {
-      setVerifyingPayment(true);
-      const res = await subscriptionsApi.getPayment(paymentResult.payment.id);
-      const paymentStatus = res.data?.payment?.statut;
-
-      if (paymentStatus === "CONFIRME") {
-        setPaymentVerificationStatus("CONFIRME");
-        await fetchData();
-      } else if (paymentStatus === "ECHOUE") {
-        setPaymentVerificationStatus("ECHOUE");
-      } else {
-        setPaymentVerificationStatus("EN_ATTENTE_INFO");
-      }
-    } catch (err: any) {
-      setError("Impossible de vérifier l'état du paiement. Veuillez réessayer.");
-    } finally {
-      setVerifyingPayment(false);
-    }
   };
 
   return (
     <div className="subscriptions-page">
       <div className="container subscriptions-container">
-        {/* Titre & En-tête */}
-        <div className="page-header text-center">
-          <span className="page-badge">Formules & Tarifs</span>
-          <h1 className="page-title">Abonnements Sylla Voyage</h1>
+        {/* En-tête de section */}
+        <div className="page-header">
+          <span className="page-header-badge">Abonnements & Tarifs</span>
+          <h1 className="page-title">Nos Formules d'Abonnement</h1>
           <p className="page-subtitle">
-            Accédez à toutes les fonctionnalités et aux professionnels vérifiés en toute sécurité.
+            Accédez aux services certifiés de Sylla Voyage selon votre profil. Tarifs transparents, sans engagement caché.
           </p>
         </div>
 
@@ -217,11 +197,11 @@ export const SubscriptionsPage: React.FC = () => {
             {user.role === "ADMIN" ? (
               <div className="sub-status-card sub-status-admin">
                 <div className="sub-status-header">
-                  <span className="status-badge-icon">🛡️</span>
+                  <IconShieldCheck size={24} className="icon-success" />
                   <div>
                     <h3 className="sub-status-title">Compte Administrateur</h3>
                     <p className="sub-status-desc">
-                      Votre compte bénéficie d'un accès administratif complet sans abonnement.
+                      Votre compte bénéficie d'un accès administratif complet sans restriction d'abonnement.
                     </p>
                   </div>
                 </div>
@@ -229,14 +209,17 @@ export const SubscriptionsPage: React.FC = () => {
             ) : hasActiveSub && mySubscription ? (
               <div className="sub-status-card sub-status-active">
                 <div className="sub-status-header">
-                  <span className="badge-verified">✓ Abonnement Actif</span>
+                  <span className="badge-verified">
+                    <IconCheck size={14} />
+                    <span>Abonnement Actif</span>
+                  </span>
                   <span className="sub-role-tag">
                     {user.role === "PROFESSIONNEL" ? "Formule Professionnel" : "Formule Voyageur"}
                   </span>
                 </div>
                 <div className="sub-status-body">
                   <div className="sub-info-row">
-                    <span className="sub-info-label">Formule actuelle :</span>
+                    <span className="sub-info-label">Formule :</span>
                     <strong className="sub-info-val">
                       {mySubscription.formule?.nom || "Abonnement Sylla Voyage"}
                     </strong>
@@ -253,15 +236,15 @@ export const SubscriptionsPage: React.FC = () => {
                       </strong>
                     </div>
                   </div>
-                  <p className="sub-status-note">
-                    Votre accès aux fonctionnalités et contacts est actuellement actif.
-                  </p>
                 </div>
               </div>
             ) : hasExpiredSub && mySubscription ? (
               <div className="sub-status-card sub-status-expired">
                 <div className="sub-status-header">
-                  <span className="badge-status-expired">⚠️ Abonnement Expiré</span>
+                  <span className="badge-status-expired">
+                    <IconAlertTriangle size={14} />
+                    <span>Abonnement Expiré</span>
+                  </span>
                 </div>
                 <div className="sub-status-body">
                   <p className="sub-status-desc">
@@ -269,27 +252,30 @@ export const SubscriptionsPage: React.FC = () => {
                     à expiration le <strong>{formatDate(mySubscription.date_fin)}</strong>.
                   </p>
                   <p className="sub-status-note">
-                    Renouvelez votre abonnement ci-dessous pour restaurer votre accès aux
-                    fonctionnalités réservées.
+                    Renouvelez votre formule ci-dessous pour restaurer vos accès.
                   </p>
                 </div>
               </div>
             ) : hasPendingSub && mySubscription ? (
               <div className="sub-status-card sub-status-pending">
                 <div className="sub-status-header">
-                  <span className="badge-status-pending">⏳ Paiement en attente de confirmation</span>
+                  <span className="badge-status-pending">
+                    <IconRefresh size={14} />
+                    <span>Paiement en cours de confirmation</span>
+                  </span>
                 </div>
                 <div className="sub-status-body">
                   <p className="sub-status-desc">
-                    Une souscription est actuellement enregistrée en attente de confirmation serveur
-                    par l'opérateur de paiement.
+                    Une souscription est en attente de validation par la passerelle de paiement.
                   </p>
                   <button
                     type="button"
                     className="btn btn-primary btn-sm"
                     onClick={fetchData}
+                    style={{ marginTop: "10px" }}
                   >
-                    🔄 Vérifier l'activation
+                    <IconRefresh size={14} />
+                    <span>Vérifier l'activation</span>
                   </button>
                 </div>
               </div>
@@ -299,8 +285,7 @@ export const SubscriptionsPage: React.FC = () => {
                   <span className="badge-status-neutral">Aucun abonnement actif</span>
                 </div>
                 <p className="sub-status-desc">
-                  Vous ne disposez pas d'abonnement actif. Choisissez une formule ci-dessous pour
-                  débloquer l'accès complet.
+                  Choisissez une formule ci-dessous pour activer vos accès sur la plateforme.
                 </p>
               </div>
             )}
@@ -310,7 +295,7 @@ export const SubscriptionsPage: React.FC = () => {
         {/* SÉLECTEUR DE RÔLE SI VISITEUR NON CONNECTÉ */}
         {!isAuthenticated && (
           <div className="role-switch-container">
-            <span className="role-switch-label">Afficher les tarifs pour :</span>
+            <span className="role-switch-label">Afficher les offres pour :</span>
             <div className="role-switch-buttons">
               <button
                 type="button"
@@ -318,7 +303,8 @@ export const SubscriptionsPage: React.FC = () => {
                 onClick={() => setUnauthRole("VOYAGEUR")}
                 id="tab-role-voyageur"
               >
-                🎒 Voyageurs
+                <IconCompass size={16} />
+                <span>Voyageurs</span>
               </button>
               <button
                 type="button"
@@ -326,7 +312,8 @@ export const SubscriptionsPage: React.FC = () => {
                 onClick={() => setUnauthRole("PROFESSIONNEL")}
                 id="tab-role-professionnel"
               >
-                🏢 Professionnels
+                <IconBuilding size={16} />
+                <span>Professionnels</span>
               </button>
             </div>
           </div>
@@ -346,7 +333,7 @@ export const SubscriptionsPage: React.FC = () => {
                 }}
                 aria-label="Fermer"
               >
-                ✕
+                <IconX size={18} />
               </button>
             </div>
 
@@ -354,7 +341,7 @@ export const SubscriptionsPage: React.FC = () => {
             {paymentResult ? (
               <div className="payment-initiated-view">
                 <div className="payment-initiated-status">
-                  <span className="payment-icon">⏳</span>
+                  <IconRefresh size={32} className="spin-slow text-primary" />
                   <h3>Paiement initié — En attente de confirmation</h3>
                   <p className="text-muted">
                     Référence : <code>{paymentResult.payment.reference}</code>
@@ -380,8 +367,8 @@ export const SubscriptionsPage: React.FC = () => {
 
                 <div className="payment-instructions">
                   <p>
-                    Veuillez procéder au paiement sur la page sécurisée. Dès confirmation reçue par
-                    notre serveur, votre abonnement sera activé automatiquement.
+                    Veuillez procéder au règlement sur la page sécurisée. Dès confirmation reçue par
+                    le serveur, votre abonnement sera activé automatiquement.
                   </p>
                 </div>
 
@@ -394,7 +381,8 @@ export const SubscriptionsPage: React.FC = () => {
                       className="btn btn-primary btn-block btn-lg"
                       id="btn-goto-checkout"
                     >
-                      💳 Ouvrir la page de paiement sécurisée
+                      <IconCreditCard size={18} />
+                      <span>Accéder au paiement sécurisé</span>
                     </a>
                   </div>
                 )}
@@ -407,23 +395,24 @@ export const SubscriptionsPage: React.FC = () => {
                     disabled={verifyingPayment}
                     id="btn-verify-payment"
                   >
-                    {verifyingPayment ? "Vérification en cours..." : "🔄 Vérifier l'état du paiement"}
+                    <IconRefresh size={16} />
+                    <span>{verifyingPayment ? "Vérification en cours..." : "Vérifier l'état du paiement"}</span>
                   </button>
 
                   {paymentVerificationStatus === "CONFIRME" && (
                     <div className="alert alert-success mt-2">
-                      ✓ Paiement validé par le serveur ! Votre abonnement est désormais actif.
+                      <IconCheck size={16} />
+                      <span>Paiement validé par le serveur ! Votre abonnement est désormais actif.</span>
                     </div>
                   )}
                   {paymentVerificationStatus === "EN_ATTENTE_INFO" && (
                     <div className="alert alert-info mt-2">
-                      Paiement toujours en cours de traitement par l'opérateur. Veuillez finaliser
-                      votre règlement sur la page sécurisée.
+                      Paiement en cours de traitement. Veuillez finaliser votre règlement sur la page sécurisée.
                     </div>
                   )}
                   {paymentVerificationStatus === "ECHOUE" && (
                     <div className="alert alert-error mt-2">
-                      Le paiement n'a pas pu aboutir. Vous pouvez réessayer.
+                      Le paiement n'a pas abouti. Vous pouvez réitérer la tentative.
                     </div>
                   )}
                 </div>
@@ -442,13 +431,10 @@ export const SubscriptionsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Choix du moyen de paiement et détail transparent */}
+                {/* Choix du moyen de paiement : NabooPay exclusively */}
                 {(() => {
                   const nabooChannel = selectedPlan.canaux_paiement_supportes?.find(
-                    (c) => c.provider === "NABOOPAY"
-                  );
-                  const bictorysChannel = selectedPlan.canaux_paiement_supportes?.find(
-                    (c) => c.provider === "BICTORYS"
+                    (c: PaymentChannel) => c.provider === "NABOOPAY"
                   );
                   const b = getSelectedBreakdown();
 
@@ -456,46 +442,26 @@ export const SubscriptionsPage: React.FC = () => {
                     <>
                       <div className="payment-provider-select">
                         <label className="provider-select-label">
-                          Choisissez votre moyen de paiement :
+                          Moyen de paiement :
                         </label>
                         <div className="provider-options">
-                          <label
-                            className={`provider-card ${selectedProvider === "NABOOPAY" ? "is-selected" : ""}`}
-                          >
+                          <label className="provider-card is-selected">
                             <input
                               type="radio"
                               name="payment-provider"
                               value="NABOOPAY"
-                              checked={selectedProvider === "NABOOPAY"}
-                              onChange={() => setSelectedProvider("NABOOPAY")}
+                              checked={true}
+                              readOnly
                             />
                             <div className="provider-info">
-                              <span className="provider-title">📱 Mobile Money</span>
+                              <span className="provider-title">
+                                <IconPhone size={16} />
+                                <span>Mobile Money</span>
+                              </span>
                               <span className="provider-subtitle">Wave / Orange Money (NabooPay)</span>
                               {nabooChannel && (
                                 <span className="provider-fee">
-                                  Frais : +{nabooChannel.frais_estimes.toLocaleString("fr-FR")} FCFA
-                                </span>
-                              )}
-                            </div>
-                          </label>
-
-                          <label
-                            className={`provider-card ${selectedProvider === "BICTORYS" ? "is-selected" : ""}`}
-                          >
-                            <input
-                              type="radio"
-                              name="payment-provider"
-                              value="BICTORYS"
-                              checked={selectedProvider === "BICTORYS"}
-                              onChange={() => setSelectedProvider("BICTORYS")}
-                            />
-                            <div className="provider-info">
-                              <span className="provider-title">💳 Carte Bancaire</span>
-                              <span className="provider-subtitle">Visa / Mastercard (Bictorys)</span>
-                              {bictorysChannel && (
-                                <span className="provider-fee">
-                                  Frais : +{bictorysChannel.frais_estimes.toLocaleString("fr-FR")} FCFA
+                                  Frais opérateur : +{nabooChannel.frais_estimes.toLocaleString("fr-FR")} FCFA
                                 </span>
                               )}
                             </div>
@@ -503,7 +469,7 @@ export const SubscriptionsPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Détail transparent des montants réels */}
+                      {/* Détail transparent des montants */}
                       {b && (
                         <div className="payment-breakdown-card">
                           <div className="breakdown-title">Détail du paiement :</div>
@@ -516,7 +482,7 @@ export const SubscriptionsPage: React.FC = () => {
                             <span>+{b.frais.toLocaleString("fr-FR")} FCFA</span>
                           </div>
                           <div className="breakdown-row breakdown-total">
-                            <strong>Total à payer :</strong>
+                            <strong>Total à régler :</strong>
                             <strong>{b.total.toLocaleString("fr-FR")} FCFA</strong>
                           </div>
                         </div>
@@ -555,10 +521,12 @@ export const SubscriptionsPage: React.FC = () => {
 
         {/* 3. GRILLE DES FORMULES DISPONIBLES */}
         {loading ? (
-          <LoadingSpinner message="Chargement des formules d'abonnement..." />
+          <div className="center-container">
+            <LoadingSpinner message="Chargement des formules d'abonnement..." size="large" />
+          </div>
         ) : filteredPlans.length === 0 ? (
           <div className="empty-plans-state">
-            <span className="empty-icon">🏷️</span>
+            <IconFileText size={36} />
             <h3>Aucune formule disponible</h3>
             <p>Les formules pour ce rôle sont momentanément indisponibles.</p>
           </div>
@@ -572,19 +540,13 @@ export const SubscriptionsPage: React.FC = () => {
               return (
                 <div
                   key={plan.id}
-                  className={`plan-card ${isCurrent ? "plan-card-current" : ""} ${
-                    !isMonthly ? "plan-card-featured" : ""
-                  }`}
+                  className={`plan-card ${isCurrent ? "plan-card-current" : ""}`}
                   id={`plan-card-${plan.id}`}
                 >
                   {isCurrent && (
                     <div className="plan-badge-current">
-                      ✓ Formule Actuelle
-                    </div>
-                  )}
-                  {!isMonthly && !isCurrent && (
-                    <div className="plan-badge-discount">
-                      Meilleure Offre
+                      <IconCheck size={14} />
+                      <span>Formule Actuelle</span>
                     </div>
                   )}
 
@@ -609,22 +571,44 @@ export const SubscriptionsPage: React.FC = () => {
 
                   <ul className="plan-features-list">
                     <li>
-                      ✓ Accès complet {isMonthly ? "pendant 30 jours" : "pendant 365 jours"}
+                      <IconCheck size={16} />
+                      <span>Accès complet {isMonthly ? "pendant 30 jours" : "pendant 365 jours"}</span>
                     </li>
                     {plan.type_utilisateur === "PROFESSIONNEL" ? (
                       <>
-                        <li>✓ Visibilité dans l'annuaire des professionnels</li>
-                        <li>✓ Réception des demandes de contact voyageurs</li>
-                        <li>✓ Publication d'annonces et circuits validés</li>
+                        <li>
+                          <IconCheck size={16} />
+                          <span>Visibilité dans l'annuaire des professionnels vérifiés</span>
+                        </li>
+                        <li>
+                          <IconCheck size={16} />
+                          <span>Réception des messages directs des voyageurs</span>
+                        </li>
+                        <li>
+                          <IconCheck size={16} />
+                          <span>Publication d'offres et circuits touristiques</span>
+                        </li>
                       </>
                     ) : (
                       <>
-                        <li>✓ Mise en relation avec les professionnels vérifiés</li>
-                        <li>✓ Accès aux guides complets et informations fiables</li>
-                        <li>✓ Messagerie et échange de documents sécurisés</li>
+                        <li>
+                          <IconCheck size={16} />
+                          <span>Mise en relation directe avec les structures vérifiées</span>
+                        </li>
+                        <li>
+                          <IconCheck size={16} />
+                          <span>Messagerie sécurisée avec échange de documents</span>
+                        </li>
+                        <li>
+                          <IconCheck size={16} />
+                          <span>Accès intégral aux guides et informations locales</span>
+                        </li>
                       </>
                     )}
-                    <li>✓ Paiement sécurisé Wave, Orange Money et Carte</li>
+                    <li>
+                      <IconCheck size={16} />
+                      <span>Paiement sécurisé Mobile Money (Wave, OM) et Carte</span>
+                    </li>
                   </ul>
 
                   <div className="plan-action-wrapper">
@@ -658,14 +642,15 @@ export const SubscriptionsPage: React.FC = () => {
 
         {/* 4. NOTE DE CONFIANCE & SÉCURITÉ */}
         <div className="subscription-guarantee-card">
-          <div className="guarantee-icon">🔒</div>
+          <div className="guarantee-icon">
+            <IconLock size={22} />
+          </div>
           <div className="guarantee-content">
-            <h4>Paiement 100% sécurisé et transparent</h4>
+            <h4>Paiement sécurisé</h4>
             <p>
-              Toutes les transactions sont traitées par nos partenaires agréés NabooPay et
-              Bictorys. Aucun numéro de carte ou code secret n'est conservé sur nos serveurs.
-              L'activation de votre abonnement est confirmée automatiquement dès réception de la
-              validation bancaire.
+              Les règlements par Mobile Money (Wave et Orange Money) sont pris en charge par la passerelle sécurisée
+              NabooPay. Aucune coordonnée bancaire n'est conservée sur nos serveurs. L'activation
+              de votre formule est effectuée automatiquement dès confirmation de la transaction.
             </p>
           </div>
         </div>

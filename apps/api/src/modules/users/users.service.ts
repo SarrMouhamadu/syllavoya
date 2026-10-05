@@ -1,5 +1,6 @@
 import { db } from "../../db.js";
 import { AppError } from "../../errors/AppError.js";
+import { validateAndNormalizeSenegalPhone } from "../../utils/phone.js";
 
 export interface UpdateProfileDTO {
   nom?: string;
@@ -105,10 +106,7 @@ export class UsersService {
     }
 
     if (data.telephone !== undefined) {
-      if (data.telephone !== null && typeof data.telephone !== "string") {
-        throw new AppError("Le format du numéro de téléphone est invalide", 400, "VALIDATION_ERROR");
-      }
-      updates.telephone = data.telephone ? data.telephone.trim() : null;
+      updates.telephone = validateAndNormalizeSenegalPhone(data.telephone);
     }
 
     if (data.email !== undefined) {

@@ -40,4 +40,30 @@ export const publicationsApi = {
       method: "GET",
     });
   },
+
+  listMine: async (): Promise<PublicationsListResponse> => {
+    return apiFetch<PublicationsListResponse>("/publications/me", {
+      method: "GET",
+    });
+  },
+
+  create: async (data: { titre: string; contenu: string }): Promise<PublicationDetailResponse> => {
+    return apiFetch<PublicationDetailResponse>("/publications", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (id: string, data: { titre?: string; contenu?: string }): Promise<PublicationDetailResponse> => {
+    return apiFetch<PublicationDetailResponse>(`/publications/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return apiFetch<{ success: boolean; message: string }>(`/publications/${id}`, {
+      method: "DELETE",
+    });
+  },
 };

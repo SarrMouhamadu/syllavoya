@@ -2,19 +2,20 @@ import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Alert } from "../components/Alert";
+import { IconLogo, IconLock, IconUser } from "../components/Icons";
 
 export const LoginPage: React.FC = () => {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [email, setEmail] = useState("");
+  const [identifiant, setIdentifiant] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Redirection si déjà connecté
-  const from = (location.state as any)?.from?.pathname || "/";
+  const from = (location.state as any)?.from?.pathname || "/dashboard";
   React.useEffect(() => {
     if (isAuthenticated) {
       navigate(from, { replace: true });
@@ -25,15 +26,15 @@ export const LoginPage: React.FC = () => {
     e.preventDefault();
     setError(null);
 
-    if (!email.trim() || !motDePasse) {
-      setError("Veuillez renseigner votre email et votre mot de passe.");
+    if (!identifiant.trim() || !motDePasse) {
+      setError("Veuillez renseigner votre email ou téléphone et votre mot de passe.");
       return;
     }
 
     try {
       setLoading(true);
       await login({
-        email: email.trim(),
+        email: identifiant.trim(),
         mot_de_passe: motDePasse,
       });
       navigate(from, { replace: true });
@@ -48,7 +49,7 @@ export const LoginPage: React.FC = () => {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-header">
-          <span className="auth-logo">🌍</span>
+          <IconLogo size={40} className="auth-logo-svg" />
           <h1 className="auth-title">Connexion</h1>
           <p className="auth-subtitle">
             Accédez à votre compte Sylla Voyage
@@ -59,17 +60,18 @@ export const LoginPage: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="auth-form" noValidate>
           <div className="form-group">
-            <label htmlFor="login-email" className="form-label">
-              Adresse email
+            <label htmlFor="login-identifiant" className="form-label">
+              <IconUser size={15} />
+              <span>Email ou Numéro de téléphone</span>
             </label>
             <input
-              id="login-email"
-              type="email"
+              id="login-identifiant"
+              type="text"
               className="form-input"
-              placeholder="ex: amadou.sy@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
+              placeholder="ex: contact@agence.sn ou 77 123 45 67"
+              value={identifiant}
+              onChange={(e) => setIdentifiant(e.target.value)}
+              autoComplete="username"
               disabled={loading}
               required
             />
@@ -77,7 +79,8 @@ export const LoginPage: React.FC = () => {
 
           <div className="form-group">
             <label htmlFor="login-password" className="form-label">
-              Mot de passe
+              <IconLock size={15} />
+              <span>Mot de passe</span>
             </label>
             <input
               id="login-password"

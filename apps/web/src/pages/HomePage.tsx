@@ -1,99 +1,149 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { DashboardPage } from "./DashboardPage";
+import {
+  IconSearch,
+  IconShieldCheck,
+  IconMessage,
+  IconArrowRight,
+  IconCheck,
+} from "../components/Icons";
 
 export const HomePage: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
+
+  // Si l'utilisateur est connecté, afficher son tableau de bord orienté activité
+  // plutôt qu'une page marketing visiteur.
+  if (isAuthenticated && user) {
+    return <DashboardPage />;
+  }
 
   return (
     <div className="home-page">
       {/* Hero Section */}
       <section className="hero-section">
         <div className="container hero-container">
-          <span className="hero-badge">🇸🇳 Sylla Voyage</span>
+          <div className="hero-badge-tag">
+            <IconShieldCheck size={16} />
+            <span>Structures touristiques vérifiées au Sénégal</span>
+          </div>
+
           <h1 className="hero-title">
-            Voyagez en toute confiance avec des professionnels vérifiés
+            Organisez votre voyage avec des professionnels vérifiés
           </h1>
+
           <p className="hero-description">
-            La première plateforme de mise en relation directe, sécurisée et humaine entre voyageurs et structures de voyage formelles au Sénégal.
+            Sylla Voyage met en relation les voyageurs avec des agences formelles et des guides certifiés.
+            Consultez les dossiers administratifs validés et échangez en direct en toute sérénité.
           </p>
 
           <div className="hero-actions">
-            {isAuthenticated && user ? (
-              <div className="hero-user-card">
-                <p className="user-welcome">
-                  👋 Ravi de vous revoir, <strong>{user.prenom} {user.nom}</strong>
-                </p>
-                <div className="user-actions">
-                  <Link to="/profile" className="btn btn-primary btn-lg">
-                    Accéder à mon profil
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              <div className="hero-guest-actions">
-                <Link to="/register" className="btn btn-primary btn-lg">
-                  Commencer maintenant
-                </Link>
-                <Link to="/login" className="btn btn-outline btn-lg">
-                  J'ai déjà un compte
-                </Link>
-              </div>
-            )}
+            {/* UN CTA PRINCIPAL UNIQUE */}
+            <Link to="/professionals" className="btn btn-primary btn-lg" id="hero-main-cta">
+              <IconSearch size={18} />
+              <span>Trouver un professionnel</span>
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* 3 Pilliers Section (Conforme docs/10-ui-guidelines.md) */}
-      <section className="features-section">
+      {/* Section "Comment ça marche" (3 étapes maximum) */}
+      <section className="how-it-works-section">
         <div className="container">
           <div className="section-header">
-            <h2 className="section-title">Pourquoi choisir Sylla Voyage ?</h2>
+            <h2 className="section-title">Comment ça marche</h2>
             <p className="section-subtitle">
-              Une expérience pensée pour être simple, transparente et accessible sur mobile.
+              Une démarche claire en trois étapes pour organiser votre séjour en toute confiance.
             </p>
           </div>
 
-          <div className="features-grid">
-            <div className="feature-card">
-              <div className="feature-icon">🛡️</div>
-              <h3 className="feature-title">Professionnels vérifiés</h3>
-              <p className="feature-text">
-                Chaque structure est contrôlée avec ses pièces officielles (RCCM, NINEA) avant de pouvoir être contactée.
+          <div className="steps-grid">
+            {/* Étape 1 : Trouver */}
+            <div className="step-card">
+              <div className="step-number">1</div>
+              <div className="step-icon-wrap">
+                <IconSearch size={24} />
+              </div>
+              <h3 className="step-title">Trouver</h3>
+              <p className="step-desc">
+                Explorez l'annuaire des agences et professionnels locaux selon votre destination et votre projet de voyage.
               </p>
             </div>
 
-            <div className="feature-card">
-              <div className="feature-icon">💬</div>
-              <h3 className="feature-title">Contrôle voyageur</h3>
-              <p className="feature-text">
-                Aucun démarchage intempestif : seul le voyageur décide d'initier la première prise de contact.
+            {/* Étape 2 : Vérifier */}
+            <div className="step-card">
+              <div className="step-number">2</div>
+              <div className="step-icon-wrap">
+                <IconShieldCheck size={24} />
+              </div>
+              <h3 className="step-title">Vérifier</h3>
+              <p className="step-desc">
+                Chaque professionnel dispose d'un dossier administratif contrôlé par notre équipe (identité, RCCM, NINEA).
               </p>
             </div>
 
-            <div className="feature-card">
-              <div className="feature-icon">💳</div>
-              <h3 className="feature-title">Paiements locaux sécurisés</h3>
-              <p className="feature-text">
-                Réglez en toute sérénité par Mobile Money (Wave, Orange Money) ou Carte Bancaire en FCFA.
+            {/* Étape 3 : Contacter */}
+            <div className="step-card">
+              <div className="step-number">3</div>
+              <div className="step-icon-wrap">
+                <IconMessage size={24} />
+              </div>
+              <h3 className="step-title">Contacter</h3>
+              <p className="step-desc">
+                Initiez le premier contact directement sur la plateforme pour poser vos questions et préparer votre voyage.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Section CTA */}
+      {/* Section Engagements de confiance */}
+      <section className="commitments-section">
+        <div className="container">
+          <div className="commitments-card">
+            <div className="commitments-content">
+              <h2 className="commitments-title">Les garanties de la plateforme</h2>
+              <p className="commitments-lead">
+                Une relation saine et transparente entre voyageurs et prestataires.
+              </p>
+
+              <ul className="commitments-list">
+                <li>
+                  <IconCheck size={18} className="list-check-icon" />
+                  <div>
+                    <strong>Contrôle des pièces d'identité et registres :</strong> Seules les structures formellement identifiées peuvent être contactées.
+                  </div>
+                </li>
+                <li>
+                  <IconCheck size={18} className="list-check-icon" />
+                  <div>
+                    <strong>Priorité au voyageur :</strong> Aucun démarchage non sollicité. Vous gardez la main sur les échanges.
+                  </div>
+                </li>
+                <li>
+                  <IconCheck size={18} className="list-check-icon" />
+                  <div>
+                    <strong>Informations fiables :</strong> Aucune fausse note ou faux avis. Seules les données réelles et vérifiées sont présentées.
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section CTA finale */}
       <section className="cta-section">
         <div className="container cta-container">
-          <h2 className="cta-title">Prêt à organiser votre prochain voyage ?</h2>
+          <h2 className="cta-title">Prêt à démarrer vos préparatifs ?</h2>
           <p className="cta-text">
-            Rejoignez dès aujourd'hui la communauté des voyageurs et professionnels de confiance.
+            Accédez dès maintenant à la liste des professionnels vérifiés par nos soins.
           </p>
-          {!isAuthenticated && (
-            <Link to="/register" className="btn btn-primary btn-lg">
-              Créer mon compte gratuitement
-            </Link>
-          )}
+          <Link to="/professionals" className="btn btn-primary btn-lg">
+            <span>Explorer les professionnels</span>
+            <IconArrowRight size={16} />
+          </Link>
         </div>
       </section>
     </div>

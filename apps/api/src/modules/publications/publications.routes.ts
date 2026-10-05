@@ -28,3 +28,17 @@ publicationsRoutes.get("/:id", (req, res, next) => {
 publicationsRoutes.post("/:id/submit", authenticate, (req, res, next) => {
   publicationsController.submit(req, res, next);
 });
+
+// Modifier une publication (auteur ou admin uniquement)
+publicationsRoutes.patch("/:id", authenticate, (req, res, next) => {
+  publicationsController.update(req, res, next);
+});
+
+publicationsRoutes.put("/:id", authenticate, (req, res, next) => {
+  publicationsController.update(req, res, next);
+});
+
+// Supprimer une publication (auteur ou admin uniquement)
+publicationsRoutes.delete("/:id", authenticate, (req, res, next) => {
+  publicationsController.delete(req, res, next);
+});

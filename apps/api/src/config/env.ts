@@ -6,7 +6,6 @@ dotenv.config();
 const REQUIRED_SECRETS = [
   "JWT_SECRET",
   "NABOOPAY_WEBHOOK_SECRET",
-  "BICTORYS_WEBHOOK_SECRET",
 ] as const;
 
 export function validateRequiredEnv(): void {
@@ -36,7 +35,7 @@ export const config = {
   naboopayWebhookSecret: process.env.NABOOPAY_WEBHOOK_SECRET!.trim(),
   naboopayBaseUrl: process.env.NABOOPAY_BASE_URL || "https://api.naboopay.com",
   bictorysApiKey: process.env.BICTORYS_API_KEY || "",
-  bictorysWebhookSecret: process.env.BICTORYS_WEBHOOK_SECRET!.trim(),
+  bictorysWebhookSecret: process.env.BICTORYS_WEBHOOK_SECRET ? process.env.BICTORYS_WEBHOOK_SECRET.trim() : "",
   bictorysBaseUrl: process.env.BICTORYS_BASE_URL || "https://api.bictorys.com",
 };
 

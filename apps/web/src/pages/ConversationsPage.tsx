@@ -5,6 +5,13 @@ import { conversationsApi, type ConversationSummary } from "../api/conversations
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { EmptyState } from "../components/EmptyState";
 import { Alert } from "../components/Alert";
+import {
+  IconMessage,
+  IconBuilding,
+  IconUser,
+  IconArrowRight,
+  IconRefresh,
+} from "../components/Icons";
 
 export const ConversationsPage: React.FC = () => {
   const { user } = useAuth();
@@ -70,7 +77,6 @@ export const ConversationsPage: React.FC = () => {
       const p = c.professionnel?.nom_structure || "Professionnel";
       return `${v} ↔ ${p}`;
     }
-    // Pour un voyageur, l'interlocuteur est la structure professionnelle
     return c.professionnel?.nom_structure || "Structure professionnelle";
   };
 
@@ -92,7 +98,7 @@ export const ConversationsPage: React.FC = () => {
         <div className="page-header">
           <div className="page-header-row">
             <div>
-              <span className="page-badge">Messagerie sécurisée</span>
+              <span className="page-header-badge">Messagerie sécurisée</span>
               <h1 className="page-title">Mes Conversations</h1>
               <p className="page-subtitle">
                 Échangez en direct avec vos interlocuteurs en toute sécurité sur la plateforme.
@@ -121,10 +127,12 @@ export const ConversationsPage: React.FC = () => {
             <Alert type="error" message={error} onClose={() => setError(null)} />
             <button
               type="button"
-              className="btn btn-primary btn-sm mt-3"
+              className="btn btn-primary btn-sm"
               onClick={fetchConversations}
+              style={{ marginTop: "14px" }}
             >
-              🔄 Réessayer
+              <IconRefresh size={16} />
+              <span>Réessayer</span>
             </button>
           </div>
         )}
@@ -132,7 +140,7 @@ export const ConversationsPage: React.FC = () => {
         {/* État vide */}
         {!loading && !error && conversations.length === 0 && (
           <EmptyState
-            icon="💬"
+            icon={<IconMessage size={40} />}
             title="Aucune conversation pour le moment"
             description={
               user?.role === "PROFESSIONNEL"
@@ -164,7 +172,7 @@ export const ConversationsPage: React.FC = () => {
                   role="listitem"
                 >
                   <div className="conv-avatar">
-                    {isPro ? "🎒" : "🏢"}
+                    {isPro ? <IconUser size={22} /> : <IconBuilding size={22} />}
                   </div>
 
                   <div className="conv-main-info">
@@ -197,7 +205,7 @@ export const ConversationsPage: React.FC = () => {
                   </div>
 
                   <div className="conv-arrow" aria-hidden="true">
-                    ›
+                    <IconArrowRight size={16} />
                   </div>
                 </Link>
               );

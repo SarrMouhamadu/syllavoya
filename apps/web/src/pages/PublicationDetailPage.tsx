@@ -3,6 +3,13 @@ import { useParams, Link } from "react-router-dom";
 import { publicationsApi, type ApiPublication } from "../api/publications";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { Alert } from "../components/Alert";
+import {
+  IconArrowLeft,
+  IconBuilding,
+  IconShieldCheck,
+  IconCalendar,
+  IconMessage,
+} from "../components/Icons";
 
 export const PublicationDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -48,7 +55,8 @@ export const PublicationDetailPage: React.FC = () => {
         {/* Navigation retour */}
         <div className="back-nav">
           <Link to="/publications" className="back-link">
-            ← Retour à la liste des publications
+            <IconArrowLeft size={16} />
+            <span>Retour aux publications</span>
           </Link>
         </div>
 
@@ -63,7 +71,7 @@ export const PublicationDetailPage: React.FC = () => {
         {!loading && error && (
           <div className="state-container">
             <Alert type="error" message={error} />
-            <Link to="/publications" className="btn btn-outline" style={{ marginTop: "12px" }}>
+            <Link to="/publications" className="btn btn-outline" style={{ marginTop: "14px" }}>
               Consulter les autres publications
             </Link>
           </div>
@@ -75,10 +83,14 @@ export const PublicationDetailPage: React.FC = () => {
             <header className="pub-detail-header">
               <div className="pub-detail-meta-top">
                 <span className="badge-verified">
-                  <span className="badge-icon">✓</span> Publication approuvée
+                  <IconShieldCheck size={14} />
+                  <span>Publication vérifiée</span>
                 </span>
                 {formattedDate && (
-                  <time className="pub-date">Publié le {formattedDate}</time>
+                  <time className="pub-date">
+                    <IconCalendar size={14} />
+                    <span>Publié le {formattedDate}</span>
+                  </time>
                 )}
               </div>
 
@@ -86,7 +98,9 @@ export const PublicationDetailPage: React.FC = () => {
 
               {pub.professionnel && (
                 <div className="pub-author-card">
-                  <div className="pub-author-avatar">🏢</div>
+                  <div className="pub-author-avatar">
+                    <IconBuilding size={22} />
+                  </div>
                   <div className="pub-author-info">
                     <span className="pub-author-label">Proposé par la structure</span>
                     <strong className="pub-author-name">
@@ -118,7 +132,8 @@ export const PublicationDetailPage: React.FC = () => {
                     to={`/professionals/${pub.professionnel_id}`}
                     className="btn btn-primary btn-lg btn-block"
                   >
-                    Contacter cette structure
+                    <IconMessage size={16} />
+                    <span>Contacter cette structure</span>
                   </Link>
                 </div>
               </footer>

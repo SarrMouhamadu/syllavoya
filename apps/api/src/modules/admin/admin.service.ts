@@ -4,7 +4,12 @@ import { db } from "../../db.js";
 import { AppError } from "../../errors/AppError.js";
 
 export interface TreatVerificationDTO {
-  decision: "ACCEPTEE" | "REFUSEE" | "SUSPENDUE" | "REVOQUEE";
+  decision: "ACCEPTEE" | "REFUSEE" | "SUSPENDUE" | "REVOQUEE" | "APPROUVEE" | "REJETEE";
+  commentaire?: string | null;
+}
+
+export interface TreatPublicationDTO {
+  decision: "APPROUVEE" | "REJETEE" | "REFUSEE";
   commentaire?: string | null;
 }
 
@@ -49,6 +54,7 @@ export class AdminService {
           nom: user.nom,
           prenom: user.prenom,
           email: user.email,
+          telephone: user.telephone,
         } : null,
         documents: documents.map((d) => ({
           id: d.id,
@@ -64,7 +70,7 @@ export class AdminService {
   }
 
   async treatVerification(verificationId: string, data: TreatVerificationDTO): Promise<any> {
-    const allowedDecisions = ["ACCEPTEE", "REFUSEE", "SUSPENDUE", "REVOQUEE"];
+    const allowedDecisions = ["ACCEPTEE", "APPROUVEE", "REFUSEE", "REJETEE", "SUSPENDUE", "REVOQUEE"];
     if (!data.decision || !allowedDecisions.includes(data.decision)) {
       throw new AppError(
         `Décision invalide. Valeurs acceptées : ${allowedDecisions.join(", ")}`,
@@ -91,44 +97,70 @@ export class AdminService {
 
     const now = Temporal.Now.instant();
 
+    // Normalisation de la décision
+    let normalizedDecision = data.decision;
+    let newProStatus: string;
+    let docStatus: string | null = null;
+
+    switch (data.decision) {
+      case "APPROUVEE":
+      case "ACCEPTEE":
+        normalizedDecision = "APPROUVEE";
+        newProStatus = "VERIFIE";
+        docStatus = "APPROUVE";
+        break;
+      case "REJETEE":
+      case "REFUSEE":
+        normalizedDecision = "REJETEE";
+        newProStatus = "REJETE";
+        docStatus = "REJETE";
+        break;
+      case "SUSPENDUE":
+        normalizedDecision = "SUSPENDUE";
+        newProStatus = "SUSPENDU";
+        break;
+      case "REVOQUEE":
+        normalizedDecision = "REVOQUEE";
+        newProStatus = "REVOQUE";
+        break;
+      default:
+        newProStatus = "EN_ATTENTE";
+    }
+
     // Mise à jour de la vérification
     await db.orm.public.Verification
       .where({ id: verificationId })
       .update({
-        statut: data.decision,
+        statut: normalizedDecision,
         date_decision: now,
         commentaire: data.commentaire ? data.commentaire.trim() : null,
       });
 
-    // Correspondance entre la décision admin et le statut_verification du professionnel
-    let newProStatus: string;
-    switch (data.decision) {
-      case "ACCEPTEE":
-        newProStatus = "VERIFIE";
-        break;
-      case "REFUSEE":
-        newProStatus = "REFUSE";
-        break;
-      case "SUSPENDUE":
-        newProStatus = "SUSPENDU";
-        break;
-      case "REVOQUEE":
-        newProStatus = "REVOQUE";
-        break;
-    }
-
+    // Mise à jour du professionnel
     await db.orm.public.Professionnel
       .where({ id: pro.id })
       .update({
         statut_verification: newProStatus,
       });
 
+    // Mise à jour des documents si applicable
+    if (docStatus) {
+      const docs = await db.orm.public.DocumentVerification
+        .where({ professionnel_id: pro.id })
+        .all();
+      for (const d of docs) {
+        await db.orm.public.DocumentVerification
+          .where({ id: d.id })
+          .update({ statut: docStatus });
+      }
+    }
+
     // Synchronisation du rôle utilisateur si nécessaire
-    if (data.decision === "ACCEPTEE") {
+    if (newProStatus === "VERIFIE") {
       await db.orm.public.Utilisateur
         .where({ id: pro.utilisateur_id })
         .update({ role: "PROFESSIONNEL" });
-    } else if (data.decision === "REVOQUEE") {
+    } else if (newProStatus === "REVOQUE") {
       await db.orm.public.Utilisateur
         .where({ id: pro.utilisateur_id })
         .update({ role: "VOYAGEUR" });
@@ -162,11 +194,44 @@ export class AdminService {
   async listPublications(): Promise<any[]> {
     const publications = await db.orm.public.Publication.all();
 
+    // Tri anti-chronologique : publications les plus récentes d'abord
+    publications.sort((a, b) => {
+      try {
+        const tA = Temporal.Instant.from(a.date_creation.toString()).epochMilliseconds;
+        const tB = Temporal.Instant.from(b.date_creation.toString()).epochMilliseconds;
+        return tB - tA;
+      } catch {
+        return 0;
+      }
+    });
+
+    // Récupération des logs d'audit pour extraire les commentaires de modération
+    const auditLogs = await db.orm.public.AuditLog.all();
+    const commentsByPubId: Record<string, string> = {};
+
+    for (const log of auditLogs) {
+      if (log.action?.startsWith("MODERATION_PUBLICATION") && log.informations_complementaires) {
+        try {
+          const info = JSON.parse(log.informations_complementaires);
+          if (info.publication_id && info.commentaire) {
+            commentsByPubId[info.publication_id] = info.commentaire;
+          }
+        } catch {}
+      }
+    }
+
     const results = [];
     for (const pub of publications) {
       const pro = await db.orm.public.Professionnel
         .where({ id: pub.professionnel_id })
         .first();
+
+      let user = null;
+      if (pro) {
+        user = await db.orm.public.Utilisateur
+          .where({ id: pro.utilisateur_id })
+          .first();
+      }
 
       results.push({
         id: pub.id,
@@ -176,10 +241,18 @@ export class AdminService {
         statut: pub.statut,
         date_creation: pub.date_creation.toString(),
         date_publication: pub.date_publication ? pub.date_publication.toString() : null,
+        commentaire_moderation: commentsByPubId[pub.id] || null,
         professionnel: pro ? {
           id: pro.id,
           nom_structure: pro.nom_structure,
           statut_verification: pro.statut_verification,
+          utilisateur: user ? {
+            id: user.id,
+            nom: user.nom,
+            prenom: user.prenom,
+            email: user.email,
+            telephone: user.telephone,
+          } : null,
         } : null,
       });
     }
@@ -187,11 +260,15 @@ export class AdminService {
     return results;
   }
 
-  async treatPublication(publicationId: string, data: { decision: "APPROUVEE" | "REFUSEE" }): Promise<any> {
-    const allowed = ["APPROUVEE", "REFUSEE"];
+  async treatPublication(
+    publicationId: string,
+    data: TreatPublicationDTO,
+    adminUserId: string = "ADMIN"
+  ): Promise<any> {
+    const allowed = ["APPROUVEE", "REJETEE", "REFUSEE"];
     if (!data.decision || !allowed.includes(data.decision)) {
       throw new AppError(
-        `Décision invalide. Valeurs acceptées : ${allowed.join(", ")}`,
+        `Décision invalide. Valeurs acceptées : APPROUVEE, REJETEE`,
         400,
         "VALIDATION_ERROR"
       );
@@ -205,19 +282,48 @@ export class AdminService {
       throw new AppError("Publication introuvable", 404, "PUBLICATION_NOT_FOUND");
     }
 
-    const now = Temporal.Now.instant();
-    const datePublication = data.decision === "APPROUVEE" ? now : null;
+    // Normalisation : "REFUSEE" -> "REJETEE"
+    const normalizedDecision =
+      data.decision === "REJETEE" || data.decision === "REFUSEE" ? "REJETEE" : "APPROUVEE";
 
+    const now = Temporal.Now.instant();
+    const datePublication = normalizedDecision === "APPROUVEE" ? now : null;
+
+    // 1. Mise à jour de la publication
     await db.orm.public.Publication
       .where({ id: publicationId })
       .update({
-        statut: data.decision,
+        statut: normalizedDecision,
         date_publication: datePublication,
       });
 
     const updated = await db.orm.public.Publication
       .where({ id: publicationId })
       .first();
+
+    // 2. Traçabilité obligatoire : enregistrement dans AUDIT_LOG
+    const auditLog = await this.recordAuditLog(
+      adminUserId,
+      `MODERATION_PUBLICATION_${normalizedDecision}`,
+      {
+        publication_id: publicationId,
+        decision: normalizedDecision,
+        titre: pub.titre,
+        professionnel_id: pub.professionnel_id,
+        commentaire: data.commentaire ? data.commentaire.trim() : null,
+      }
+    );
+
+    const pro = await db.orm.public.Professionnel
+      .where({ id: updated!.professionnel_id })
+      .first();
+
+    let user = null;
+    if (pro) {
+      user = await db.orm.public.Utilisateur
+        .where({ id: pro.utilisateur_id })
+        .first();
+    }
 
     return {
       id: updated!.id,
@@ -227,6 +333,20 @@ export class AdminService {
       statut: updated!.statut,
       date_creation: updated!.date_creation.toString(),
       date_publication: updated!.date_publication ? updated!.date_publication.toString() : null,
+      commentaire_moderation: data.commentaire ? data.commentaire.trim() : null,
+      professionnel: pro ? {
+        id: pro.id,
+        nom_structure: pro.nom_structure,
+        statut_verification: pro.statut_verification,
+        utilisateur: user ? {
+          id: user.id,
+          nom: user.nom,
+          prenom: user.prenom,
+          email: user.email,
+          telephone: user.telephone,
+        } : null,
+      } : null,
+      audit_log: auditLog,
     };
   }
 

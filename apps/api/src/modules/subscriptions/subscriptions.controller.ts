@@ -40,11 +40,8 @@ export class SubscriptionsController {
         throw new AppError("Non authentifié", 401, "UNAUTHORIZED");
       }
 
-      const { formule_id, provider, moyen_paiement } = req.body;
-      const selectedProvider: PaymentProvider =
-        provider === "BICTORYS" || moyen_paiement === "CARD" || moyen_paiement === "CARTE_BANCAIRE"
-          ? "BICTORYS"
-          : "NABOOPAY";
+      const { formule_id } = req.body;
+      const selectedProvider: PaymentProvider = "NABOOPAY";
 
       const result = await subscriptionsService.createSubscription(
         req.user.id,
@@ -68,11 +65,7 @@ export class SubscriptionsController {
       }
 
       const id = req.params["id"] as string;
-      const { provider, moyen_paiement } = req.body;
-      const selectedProvider: PaymentProvider =
-        provider === "BICTORYS" || moyen_paiement === "CARD" || moyen_paiement === "CARTE_BANCAIRE"
-          ? "BICTORYS"
-          : "NABOOPAY";
+      const selectedProvider: PaymentProvider = "NABOOPAY";
 
       const result = await subscriptionsService.renewSubscription(
         req.user.id,

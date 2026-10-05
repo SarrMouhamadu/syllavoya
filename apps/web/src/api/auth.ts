@@ -10,7 +10,7 @@ export interface RegisterParams {
   prenom: string;
   email: string;
   mot_de_passe: string;
-  telephone?: string;
+  telephone: string;
   role?: "VOYAGEUR" | "PROFESSIONNEL";
 }
 
@@ -41,6 +41,13 @@ export const authApi = {
     return apiFetch<AuthResponse>("/auth/register", {
       method: "POST",
       body: JSON.stringify(params),
+    });
+  },
+
+  registerProfessional: async (formData: FormData): Promise<AuthResponse> => {
+    return apiFetch<AuthResponse>("/auth/register-pro", {
+      method: "POST",
+      body: formData,
     });
   },
 

@@ -10,6 +10,18 @@ import {
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { EmptyState } from "../components/EmptyState";
 import { Alert } from "../components/Alert";
+import {
+  IconArrowLeft,
+  IconBuilding,
+  IconUser,
+  IconMessage,
+  IconFileText,
+  IconSend,
+  IconLock,
+  IconRefresh,
+  IconShieldCheck,
+  IconX,
+} from "../components/Icons";
 
 export const ConversationDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -50,7 +62,6 @@ export const ConversationDetailPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Charger les métadonnées de la conversation, l'historique et la liste des documents
       const [convRes, msgRes, docRes] = await Promise.all([
         conversationsApi.getConversation(id),
         conversationsApi.listMessages(id),
@@ -89,7 +100,6 @@ export const ConversationDetailPage: React.FC = () => {
     }
   }, [loading, activeTab, messages.length]);
 
-  // Recharger les documents de la conversation
   const fetchDocuments = async () => {
     if (!id) return;
     try {
@@ -106,7 +116,6 @@ export const ConversationDetailPage: React.FC = () => {
     }
   };
 
-  // Consulter un document via l'API existante (GET /api/conversations/:id/documents/:documentId)
   const handleViewDocument = async (documentId: string) => {
     if (!id) return;
     try {
@@ -127,7 +136,6 @@ export const ConversationDetailPage: React.FC = () => {
     }
   };
 
-  // Formatter la date et l'heure
   const formatDateTime = (dateStr?: string) => {
     if (!dateStr) return "";
     try {
@@ -143,60 +151,55 @@ export const ConversationDetailPage: React.FC = () => {
     }
   };
 
-  // Déterminer l'interlocuteur
-  const interlocuteurNom =
-    user?.role === "PROFESSIONNEL"
-      ? conversation?.voyageur
-        ? `${conversation.voyageur.prenom} ${conversation.voyageur.nom}`.trim()
-        : "Voyageur"
-      : conversation?.professionnel?.nom_structure || "Structure professionnelle";
-
-  const interlocuteurBadge =
-    user?.role === "PROFESSIONNEL" ? "Voyageur" : "Structure Vérifiée";
-
-  // Règle métier : le professionnel ne peut répondre que si le voyageur a envoyé un message
-  const hasVoyageurMessage = messages.some(
-    (m) => m.expediteur_id === conversation?.voyageur?.id
-  );
-  const isPro = user?.role === "PROFESSIONNEL";
-  const proBloqueSansPremierMessage = isPro && !hasVoyageurMessage;
-
-  // Envoi d'un message
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !nouveauMessage.trim() || envoiEnCours) return;
+    if (!id || !nouveauMessage.trim()) return;
 
     try {
       setEnvoiEnCours(true);
       setEnvoiErreur(null);
 
       const res = await conversationsApi.sendMessage(id, nouveauMessage.trim());
-
       if (res.success && res.data?.message) {
-        const createdMsg = {
-          ...res.data.message,
-          est_mon_message: true,
-        };
-        // Mise à jour immédiate avec la réponse réelle du serveur
-        setMessages((prev) => [...prev, createdMsg]);
+        setMessages((prev) => [...prev, res.data.message]);
         setNouveauMessage("");
       }
     } catch (err: any) {
       setEnvoiErreur(
-        err?.message || "Impossible d'envoyer le message. Veuillez réessayer."
+        err?.message || "Impossible d'envoyer votre message. Veuillez réessayer."
       );
     } finally {
       setEnvoiEnCours(false);
     }
   };
 
+  const isPro = user?.role === "PROFESSIONNEL";
+  const interlocuteurNom = isPro
+    ? conversation?.voyageur
+      ? `${conversation.voyageur.prenom} ${conversation.voyageur.nom}`.trim()
+      : "Voyageur"
+    : conversation?.professionnel?.nom_structure || "Structure professionnelle";
+
+  const interlocuteurBadge = isPro
+    ? "Voyageur"
+    : conversation?.professionnel?.nom && conversation?.professionnel?.prenom
+    ? `Responsable : ${conversation.professionnel.prenom} ${conversation.professionnel.nom}`
+    : "Professionnel vérifié";
+
+  // Règle 5 : le professionnel ne peut pas envoyer de message si le voyageur n'en a envoyé aucun
+  const messagesFromVoyageur = messages.filter(
+    (m) => m.expediteur_id === conversation?.voyageur?.id
+  );
+  const proBloqueSansPremierMessage = isPro && messagesFromVoyageur.length === 0;
+
   return (
     <div className="chat-page">
       <div className="container chat-container">
         {/* Navigation retour */}
-        <div className="chat-nav-back">
-          <Link to="/messages" className="back-link" id="link-back-messages">
-            ← Retour à mes conversations
+        <div className="back-nav">
+          <Link to="/messages" className="back-link">
+            <IconArrowLeft size={16} />
+            <span>Toutes les conversations</span>
           </Link>
         </div>
 
@@ -207,11 +210,11 @@ export const ConversationDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* État d'erreur d'accès (403, 404, etc.) */}
+        {/* État d'erreur d'accès */}
         {!loading && error && (
           <div className="state-container">
             <Alert type="error" message={error} />
-            <Link to="/messages" className="btn btn-outline mt-3">
+            <Link to="/messages" className="btn btn-outline" style={{ marginTop: "14px" }}>
               Revenir aux conversations
             </Link>
           </div>
@@ -223,7 +226,7 @@ export const ConversationDetailPage: React.FC = () => {
             {/* En-tête de la conversation */}
             <div className="chat-header">
               <div className="chat-header-avatar">
-                {isPro ? "🎒" : "🏢"}
+                {isPro ? <IconUser size={24} /> : <IconBuilding size={24} />}
               </div>
               <div className="chat-header-info">
                 <h1 className="chat-header-title">{interlocuteurNom}</h1>
@@ -237,7 +240,7 @@ export const ConversationDetailPage: React.FC = () => {
                     to={`/professionals/${conversation.professionnel.id}`}
                     className="btn btn-outline btn-sm"
                   >
-                    Voir profil
+                    Voir fiche
                   </Link>
                 </div>
               )}
@@ -253,7 +256,8 @@ export const ConversationDetailPage: React.FC = () => {
                 onClick={() => setActiveTab("messages")}
                 id="tab-messages"
               >
-                💬 Messages ({messages.length})
+                <IconMessage size={16} />
+                <span>Messages ({messages.length})</span>
               </button>
               <button
                 type="button"
@@ -266,7 +270,8 @@ export const ConversationDetailPage: React.FC = () => {
                 }}
                 id="tab-documents"
               >
-                📄 Documents échangés ({documents.length})
+                <IconFileText size={16} />
+                <span>Documents échangés ({documents.length})</span>
               </button>
             </div>
 
@@ -277,11 +282,13 @@ export const ConversationDetailPage: React.FC = () => {
                 <div className="chat-messages-area" role="log" aria-live="polite">
                   {messages.length === 0 ? (
                     <div className="chat-empty-messages">
-                      <span className="empty-icon">✉️</span>
+                      <div className="empty-icon-wrap">
+                        <IconMessage size={32} />
+                      </div>
                       <p>Aucun message échangé pour le moment.</p>
                       {user?.role === "VOYAGEUR" ? (
                         <p className="text-muted text-sm">
-                          Envoyez votre premier message ci-dessous pour démarrer l'échange avec cette structure.
+                          Envoyez votre message ci-dessous pour démarrer l'échange avec cette structure.
                         </p>
                       ) : (
                         <p className="text-muted text-sm">
@@ -332,9 +339,9 @@ export const ConversationDetailPage: React.FC = () => {
                 {/* Notification de règle métier si professionnel sans premier message voyageur */}
                 {proBloqueSansPremierMessage && (
                   <div className="chat-business-rule-banner">
-                    <span className="rule-icon">ℹ️</span>
+                    <IconLock size={18} />
                     <span>
-                      <strong>Règle Sylla Voyage :</strong> Seul le voyageur peut initier le premier contact. Vous pourrez répondre dès réception de son premier message.
+                      <strong>Règle de la plateforme :</strong> Seul le voyageur peut initier le premier contact. Vous pourrez répondre dès réception de son premier message.
                     </span>
                   </div>
                 )}
@@ -365,7 +372,14 @@ export const ConversationDetailPage: React.FC = () => {
                     disabled={envoiEnCours || !nouveauMessage.trim() || proBloqueSansPremierMessage}
                     id="btn-send-message"
                   >
-                    {envoiEnCours ? "Envoi..." : "Envoyer"}
+                    {envoiEnCours ? (
+                      "Envoi..."
+                    ) : (
+                      <>
+                        <IconSend size={16} />
+                        <span>Envoyer</span>
+                      </>
+                    )}
                   </button>
                 </form>
               </>
@@ -382,7 +396,8 @@ export const ConversationDetailPage: React.FC = () => {
                     </p>
                   </div>
                   <span className="security-tag-pill">
-                    🔒 Accès privé réservé
+                    <IconLock size={14} />
+                    <span>Accès privé réservé</span>
                   </span>
                 </div>
 
@@ -392,10 +407,12 @@ export const ConversationDetailPage: React.FC = () => {
                     <Alert type="error" message={documentsError} />
                     <button
                       type="button"
-                      className="btn btn-outline btn-sm mt-2"
+                      className="btn btn-outline btn-sm"
                       onClick={fetchDocuments}
+                      style={{ marginTop: "10px" }}
                     >
-                      🔄 Réessayer
+                      <IconRefresh size={14} />
+                      <span>Réessayer</span>
                     </button>
                   </div>
                 )}
@@ -423,7 +440,7 @@ export const ConversationDetailPage: React.FC = () => {
                   <div className="document-detail-card" id="doc-detail-view">
                     <div className="doc-detail-header">
                       <div className="doc-detail-title-group">
-                        <span className="doc-icon-large">📄</span>
+                        <IconFileText size={24} className="doc-icon-svg" />
                         <div>
                           <h3 className="doc-detail-filename">
                             {selectedDocument.fichier}
@@ -439,7 +456,7 @@ export const ConversationDetailPage: React.FC = () => {
                         onClick={() => setSelectedDocument(null)}
                         aria-label="Fermer"
                       >
-                        ✕
+                        <IconX size={18} />
                       </button>
                     </div>
 
@@ -467,7 +484,7 @@ export const ConversationDetailPage: React.FC = () => {
                     </div>
 
                     <div className="doc-security-note">
-                      <span className="note-icon">🛡️</span>
+                      <IconShieldCheck size={18} />
                       <p>
                         Traçabilité certifiée : ce document est conservé de façon confidentielle dans les archives de la plateforme et accessible uniquement aux participants autorisés.
                       </p>
@@ -489,7 +506,7 @@ export const ConversationDetailPage: React.FC = () => {
                 {!documentsLoading && !documentsError && documents.length === 0 ? (
                   <div className="py-4">
                     <EmptyState
-                      icon="📂"
+                      icon={<IconFileText size={36} />}
                       title="Aucun document échangé"
                       description="Aucun document n'a été transmis dans cette conversation pour le moment."
                     />
@@ -515,7 +532,7 @@ export const ConversationDetailPage: React.FC = () => {
                             role="listitem"
                           >
                             <div className="doc-item-icon">
-                              📄
+                              <IconFileText size={20} />
                             </div>
                             <div className="doc-item-info">
                               <h4 className="doc-item-filename">{doc.fichier}</h4>

@@ -4,6 +4,7 @@ import { adminApi, type AdminAuditLog } from "../../api/admin";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { EmptyState } from "../../components/EmptyState";
 import { Alert } from "../../components/Alert";
+import { IconShieldCheck, IconFileText, IconFlag } from "../../components/Icons";
 
 export const AdminAuditLogsPage: React.FC = () => {
   const [logs, setLogs] = useState<AdminAuditLog[]>([]);
@@ -77,11 +78,21 @@ export const AdminAuditLogsPage: React.FC = () => {
 
         {/* Navigation Admin */}
         <div className="admin-nav-tabs">
+          <Link to="/admin/verifications" className="admin-tab-btn" id="tab-admin-verifications">
+            <IconShieldCheck size={16} />
+            <span>Vérifications</span>
+          </Link>
+          <Link to="/admin/publications" className="admin-tab-btn" id="tab-admin-publications">
+            <IconFileText size={16} />
+            <span>Publications</span>
+          </Link>
           <Link to="/admin/reports" className="admin-tab-btn" id="tab-admin-reports">
-            🚨 Signalements
+            <IconFlag size={16} />
+            <span>Signalements</span>
           </Link>
           <Link to="/admin/audit-logs" className="admin-tab-btn is-active" id="tab-admin-audit-logs">
-            📜 Journal d'audit ({logs.length})
+            <IconFileText size={16} />
+            <span>Journal d'audit ({logs.length})</span>
           </Link>
         </div>
 
@@ -103,7 +114,7 @@ export const AdminAuditLogsPage: React.FC = () => {
         {!loading && !error && logs.length === 0 && (
           <div className="py-4">
             <EmptyState
-              icon="📜"
+              icon={<IconFileText size={36} />}
               title="Aucune action enregistrée"
               description="Le journal d'audit ne contient encore aucune entrée."
             />

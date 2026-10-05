@@ -57,6 +57,35 @@ export function removeToken(): void {
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || "/api";
 
+export async function fetchDocumentBlob(documentId: string): Promise<{ blob: Blob; filename: string; mimeType: string }> {
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const url = `${API_BASE_URL}/verification/documents/${documentId}/file`;
+  const response = await fetch(url, { headers });
+
+  if (!response.ok) {
+    let msg = `Erreur lors de la récupération du document (${response.status})`;
+    try {
+      const errJson = await response.json();
+      if (errJson?.error?.message) msg = errJson.error.message;
+    } catch {}
+    throw new ApiError(msg, "DOCUMENT_FETCH_ERROR", response.status);
+  }
+
+  const blob = await response.blob();
+  const mimeType = response.headers.get("content-type") || blob.type || "application/octet-stream";
+  const disposition = response.headers.get("content-disposition") || "";
+  let filename = "piece_identite";
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  if (match && match[1]) filename = match[1];
+
+  return { blob, filename, mimeType };
+}
+
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -64,10 +93,14 @@ export async function apiFetch<T>(
   const token = getToken();
 
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     Accept: "application/json",
     ...((options.headers as Record<string, string>) || {}),
   };
+
+  // Ne pas définir Content-Type pour FormData (le navigateur gère le multipart/form-data boundary)
+  if (!(options.body instanceof FormData) && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;

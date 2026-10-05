@@ -1,12 +1,21 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { professionalsApi, type ApiProfessional } from "../api/professionals";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { Alert } from "../components/Alert";
 import { EmptyState } from "../components/EmptyState";
+import {
+  IconSearch,
+  IconShieldCheck,
+  IconBuilding,
+  IconMapPin,
+  IconArrowRight,
+  IconRefresh,
+} from "../components/Icons";
 
 export const ProfessionalsPage: React.FC = () => {
   const [professionals, setProfessionals] = useState<ApiProfessional[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,16 +40,55 @@ export const ProfessionalsPage: React.FC = () => {
     fetchProfessionals();
   }, [fetchProfessionals]);
 
+  // Filtrage local en temps réel sur les données réelles
+  const filteredProfessionals = useMemo(() => {
+    if (!searchTerm.trim()) return professionals;
+    const term = searchTerm.toLowerCase();
+    return professionals.filter((pro) => {
+      const name = pro.nom_structure?.toLowerCase() || "";
+      const info = pro.informations_professionnelles?.toLowerCase() || "";
+      const desc = pro.description?.toLowerCase() || "";
+      return name.includes(term) || info.includes(term) || desc.includes(term);
+    });
+  }, [professionals, searchTerm]);
+
   return (
     <div className="professionals-page">
       <div className="container">
-        {/* Header de section */}
+        {/* En-tête de section */}
         <div className="page-header">
-          <span className="page-badge">🛡️ Confiance & Sécurité</span>
-          <h1 className="page-title">Professionnels vérifiés</h1>
+          <div className="page-header-badge">
+            <IconShieldCheck size={16} />
+            <span>Annuaire Officiel</span>
+          </div>
+          <h1 className="page-title">Professionnels du voyage vérifiés</h1>
           <p className="page-subtitle">
-            Toutes les structures ci-dessous ont été vérifiées et certifiées par Sylla Voyage.
+            Consultez les structures et guides enregistrés dont le dossier administratif a été formellement validé par Sylla Voyage.
           </p>
+
+          {/* Barre de recherche */}
+          <div className="search-bar-wrap">
+            <div className="search-input-box">
+              <IconSearch size={18} className="search-icon" />
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Rechercher par nom d'agence, ville ou activité..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                aria-label="Rechercher un professionnel"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setSearchTerm("")}
+                >
+                  Effacer
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* État de chargement */}
@@ -58,68 +106,87 @@ export const ProfessionalsPage: React.FC = () => {
               type="button"
               className="btn btn-outline"
               onClick={fetchProfessionals}
-              style={{ marginTop: "12px" }}
+              style={{ marginTop: "14px" }}
             >
-              🔄 Réessayer
+              <IconRefresh size={16} />
+              <span>Réessayer</span>
             </button>
           </div>
         )}
 
-        {/* État vide */}
+        {/* État vide si aucune agence en base */}
         {!loading && !error && professionals.length === 0 && (
           <div className="state-container">
             <EmptyState
-              icon="🏢"
+              icon={<IconBuilding size={40} />}
               title="Aucun professionnel vérifié pour le moment"
-              description="Nos équipes sont en cours de validation de nouvelles structures partenaires. Revenez très bientôt !"
+              description="Notre équipe procède actuellement à l'audit de nouvelles structures partenaires. Les agences validées apparaîtront ici."
             />
           </div>
         )}
 
-        {/* Liste des professionnels */}
-        {!loading && !error && professionals.length > 0 && (
+        {/* État vide si aucun résultat de recherche */}
+        {!loading && !error && professionals.length > 0 && filteredProfessionals.length === 0 && (
+          <div className="state-container">
+            <EmptyState
+              icon={<IconSearch size={40} />}
+              title="Aucun résultat pour cette recherche"
+              description={`Aucun professionnel ne correspond aux termes "${searchTerm}".`}
+              actionText="Réinitialiser la recherche"
+              onAction={() => setSearchTerm("")}
+            />
+          </div>
+        )}
+
+        {/* Grille de cartes réelles entièrement cliquables */}
+        {!loading && !error && filteredProfessionals.length > 0 && (
           <div className="pro-grid">
-            {professionals.map((pro) => (
-              <article key={pro.id} className="pro-card" id={`pro-card-${pro.id}`}>
-                <div className="pro-card-header">
-                  <div className="pro-avatar">
-                    🏢
+            {filteredProfessionals.map((pro) => (
+              <Link
+                key={pro.id}
+                to={`/professionals/${pro.id}`}
+                className="pro-card-link"
+                id={`pro-card-${pro.id}`}
+              >
+                <article className="pro-card">
+                  <div className="pro-card-header">
+                    <div className="pro-avatar">
+                      <IconBuilding size={24} />
+                    </div>
+                    <div className="pro-meta">
+                      <h2 className="pro-name">{pro.nom_structure}</h2>
+                      <span className="badge-verified">
+                        <IconShieldCheck size={14} />
+                        <span>Vérifié</span>
+                      </span>
+                    </div>
                   </div>
-                  <div className="pro-meta">
-                    <h2 className="pro-name">{pro.nom_structure}</h2>
-                    <span className="badge-verified">
-                      <span className="badge-icon">✓</span> Vérifié
+
+                  <div className="pro-card-body">
+                    {pro.description ? (
+                      <p className="pro-description">{pro.description}</p>
+                    ) : (
+                      <p className="pro-description pro-desc-empty">
+                        Structure certifiée par l'administration Sylla Voyage.
+                      </p>
+                    )}
+
+                    {pro.informations_professionnelles && (
+                      <div className="pro-info-tag">
+                        <IconMapPin size={14} />
+                        <span className="info-text">{pro.informations_professionnelles}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pro-card-footer">
+                    <span className="view-profile-cta">
+                      <span>Consulter la fiche</span>
+                      <IconArrowRight size={14} />
                     </span>
                   </div>
-                </div>
-
-                <div className="pro-card-body">
-                  {pro.description ? (
-                    <p className="pro-description">{pro.description}</p>
-                  ) : (
-                    <p className="pro-description pro-desc-empty">
-                      Structure certifiée sans description complémentaire.
-                    </p>
-                  )}
-
-                  {pro.informations_professionnelles && (
-                    <div className="pro-info-tag">
-                      <span className="info-icon">📍</span>
-                      <span className="info-text">{pro.informations_professionnelles}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="pro-card-footer">
-                  <Link
-                    to={`/professionals/${pro.id}`}
-                    className="btn btn-primary btn-block btn-lg"
-                    id={`view-pro-${pro.id}`}
-                  >
-                    Voir le profil
-                  </Link>
-                </div>
-              </article>
+                </article>
+              </Link>
             ))}
           </div>
         )}

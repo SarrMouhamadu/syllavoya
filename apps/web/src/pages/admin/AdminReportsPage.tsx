@@ -4,6 +4,15 @@ import { adminApi, type AdminReport, type ReportDecision } from "../../api/admin
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { EmptyState } from "../../components/EmptyState";
 import { Alert } from "../../components/Alert";
+import {
+  IconShieldCheck,
+  IconFileText,
+  IconFlag,
+  IconCheck,
+  IconX,
+  IconRefresh,
+  IconScale,
+} from "../../components/Icons";
 
 export const AdminReportsPage: React.FC = () => {
   const [reports, setReports] = useState<AdminReport[]>([]);
@@ -93,15 +102,35 @@ export const AdminReportsPage: React.FC = () => {
   const getStatusBadge = (statut: string) => {
     switch (statut) {
       case "EN_ATTENTE":
-        return <span className="badge-status-pending">⏳ En attente</span>;
+        return (
+          <span className="badge-status-pending">
+            <IconRefresh size={12} /> En attente
+          </span>
+        );
       case "RESOLU":
-        return <span className="badge-verified">✓ Résolu</span>;
+        return (
+          <span className="badge-verified">
+            <IconCheck size={12} /> Résolu
+          </span>
+        );
       case "TRAITE":
-        return <span className="badge-status-neutral">✓ Traité</span>;
+        return (
+          <span className="badge-status-neutral">
+            <IconCheck size={12} /> Traité
+          </span>
+        );
       case "REJETE":
-        return <span className="badge-status-expired">✕ Rejeté</span>;
+        return (
+          <span className="badge-status-expired">
+            <IconX size={12} /> Rejeté
+          </span>
+        );
       case "CLASSE":
-        return <span className="badge-status-neutral">📁 Classé</span>;
+        return (
+          <span className="badge-status-neutral">
+            <IconFileText size={12} /> Classé
+          </span>
+        );
       default:
         return <span className="badge-status-neutral">{statut}</span>;
     }
@@ -114,7 +143,7 @@ export const AdminReportsPage: React.FC = () => {
         <div className="page-header">
           <div className="page-header-row">
             <div>
-              <span className="page-badge">Console d'administration</span>
+              <span className="page-header-badge">Console d'administration</span>
               <h1 className="page-title">Gestion des Signalements</h1>
               <p className="page-subtitle">
                 Examinez les signalements émis par les utilisateurs et appliquez les décisions requises.
@@ -125,11 +154,21 @@ export const AdminReportsPage: React.FC = () => {
 
         {/* Navigation Admin */}
         <div className="admin-nav-tabs">
+          <Link to="/admin/verifications" className="admin-tab-btn" id="tab-admin-verifications">
+            <IconShieldCheck size={16} />
+            <span>Vérifications</span>
+          </Link>
+          <Link to="/admin/publications" className="admin-tab-btn" id="tab-admin-publications">
+            <IconFileText size={16} />
+            <span>Publications</span>
+          </Link>
           <Link to="/admin/reports" className="admin-tab-btn is-active" id="tab-admin-reports">
-            🚨 Signalements ({reports.length})
+            <IconFlag size={16} />
+            <span>Signalements ({reports.length})</span>
           </Link>
           <Link to="/admin/audit-logs" className="admin-tab-btn" id="tab-admin-audit-logs">
-            📜 Journal d'audit
+            <IconFileText size={16} />
+            <span>Journal d'audit</span>
           </Link>
         </div>
 
@@ -161,7 +200,7 @@ export const AdminReportsPage: React.FC = () => {
         {!loading && !error && reports.length === 0 && (
           <div className="py-4">
             <EmptyState
-              icon="🛡️"
+              icon={<IconShieldCheck size={36} />}
               title="Aucun signalement"
               description="Aucun signalement n'a été enregistré pour le moment."
             />
@@ -253,10 +292,10 @@ export const AdminReportsPage: React.FC = () => {
                           }
                           disabled={submitting}
                         >
-                          <option value="TRAITE">✓ TRAITÉ (Signalement pris en charge)</option>
-                          <option value="RESOLU">✓ RÉSOLU (Mesure corrective appliquée)</option>
-                          <option value="REJETE">✕ REJETÉ (Signalement non fondé)</option>
-                          <option value="CLASSE">📁 CLASSÉ (Sans suite)</option>
+                          <option value="TRAITE">TRAITÉ (Signalement pris en charge)</option>
+                          <option value="RESOLU">RÉSOLU (Mesure corrective appliquée)</option>
+                          <option value="REJETE">REJETÉ (Signalement non fondé)</option>
+                          <option value="CLASSE">CLASSÉ (Sans suite)</option>
                         </select>
                       </div>
 
@@ -311,7 +350,8 @@ export const AdminReportsPage: React.FC = () => {
                         }}
                         id={`btn-treat-report-${report.id}`}
                       >
-                        ⚖️ Traiter ce signalement
+                        <IconScale size={14} />
+                        <span>Traiter ce signalement</span>
                       </button>
                     </div>
                   )}

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Temporal } from "temporal-polyfill";
 import { db } from "../../db.js";
 import { AppError } from "../../errors/AppError.js";
+import { subscriptionsService } from "../subscriptions/subscriptions.service.js";
 
 export interface AddDocumentParams {
   fichier: string;
@@ -35,6 +36,17 @@ export class DocumentsService {
 
     if (!isVoyageur && !isPro && userRole !== "ADMIN") {
       throw new AppError("Accès refusé : vous n'êtes pas participant à cette conversation.", 403, "FORBIDDEN");
+    }
+
+    if (isVoyageur && userRole === "VOYAGEUR") {
+      const hasSubscription = await subscriptionsService.hasActiveSubscription(userId);
+      if (!hasSubscription) {
+        throw new AppError(
+          "Un abonnement voyageur actif est requis pour échanger des documents.",
+          403,
+          "SUBSCRIPTION_REQUIRED"
+        );
+      }
     }
 
     const now = Temporal.Now.instant();

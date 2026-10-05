@@ -9,6 +9,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (params: LoginParams) => Promise<void>;
   register: (params: RegisterParams) => Promise<void>;
+  registerProfessional: (formData: FormData) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -70,6 +71,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const registerProfessional = async (formData: FormData): Promise<void> => {
+    const response = await authApi.registerProfessional(formData);
+    if (response.success && response.data) {
+      setToken(response.data.token);
+      setTokenState(response.data.token);
+      setUser(response.data.user);
+    }
+  };
+
   const logout = (): void => {
     removeToken();
     setTokenState(null);
@@ -85,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: !!user && !!token,
         login,
         register,
+        registerProfessional,
         logout,
         refreshUser,
       }}

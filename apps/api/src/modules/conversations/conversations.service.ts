@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Temporal } from "temporal-polyfill";
 import { db } from "../../db.js";
 import { AppError } from "../../errors/AppError.js";
+import { subscriptionsService } from "../subscriptions/subscriptions.service.js";
 
 export interface CreateConversationParams {
   professionnel_id: string;
@@ -26,6 +27,18 @@ export class ConversationsService {
         403,
         "FORBIDDEN"
       );
+    }
+
+    // Règle 2 : Un voyageur sans abonnement actif ou expiré ne peut pas contacter un professionnel
+    if (userRole === "VOYAGEUR") {
+      const hasSubscription = await subscriptionsService.hasActiveSubscription(userId);
+      if (!hasSubscription) {
+        throw new AppError(
+          "Un abonnement voyageur actif est requis pour contacter un professionnel.",
+          403,
+          "SUBSCRIPTION_REQUIRED"
+        );
+      }
     }
 
     if (!params.professionnel_id || typeof params.professionnel_id !== "string") {
@@ -280,6 +293,17 @@ export class ConversationsService {
 
     if (!isVoyageur && !isPro && userRole !== "ADMIN") {
       throw new AppError("Accès refusé : vous n'êtes pas participant à cette conversation.", 403, "FORBIDDEN");
+    }
+
+    if (isVoyageur && userRole === "VOYAGEUR") {
+      const hasSubscription = await subscriptionsService.hasActiveSubscription(userId);
+      if (!hasSubscription) {
+        throw new AppError(
+          "Votre abonnement est expiré. Un abonnement voyageur actif est requis pour envoyer des messages.",
+          403,
+          "SUBSCRIPTION_REQUIRED"
+        );
+      }
     }
 
     // Règle 5 de docs/01-business-rules.md :

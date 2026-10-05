@@ -44,8 +44,9 @@ export class AdminController {
 
   async treatPublication(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const adminUserId = req.user?.id || "ADMIN";
       const id = req.params["id"] as string;
-      const result = await adminService.treatPublication(id, req.body);
+      const result = await adminService.treatPublication(id, req.body, adminUserId);
 
       res.status(200).json({
         success: true,

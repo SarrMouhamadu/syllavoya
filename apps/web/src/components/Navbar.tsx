@@ -1,136 +1,263 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import {
+  IconLogo,
+  IconUser,
+  IconLogOut,
+  IconCreditCard,
+  IconChevronDown,
+  IconMenu,
+  IconX,
+} from "./Icons";
 
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close menus on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setUserDropdownOpen(false);
+  }, [location.pathname]);
+
+  // Click outside listener for user dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setUserDropdownOpen(false);
+      }
+    };
+    if (userDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [userDropdownOpen]);
 
   const handleLogout = () => {
     logout();
-    setMenuOpen(false);
+    setUserDropdownOpen(false);
+    setMobileMenuOpen(false);
     navigate("/");
+  };
+
+  const getUserInitials = () => {
+    if (!user) return "U";
+    const p = user.prenom?.charAt(0) || "";
+    const n = user.nom?.charAt(0) || "";
+    return (p + n).toUpperCase() || "U";
   };
 
   return (
     <header className="navbar-header">
       <div className="container navbar-container">
-        <Link to="/" className="navbar-brand" onClick={() => setMenuOpen(false)}>
-          <span className="brand-icon">🌍</span>
+        {/* Brand / Logo */}
+        <Link to="/" className="navbar-brand">
+          <IconLogo size={28} />
           <span className="brand-text">Sylla Voyage</span>
         </Link>
 
-        {/* Mobile menu toggle */}
+        {/* Mobile Toggle */}
         <button
           type="button"
-          className="navbar-toggle"
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-expanded={menuOpen}
-          aria-label="Menu principal"
+          className="navbar-mobile-toggle"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-expanded={mobileMenuOpen}
+          aria-label="Ouvrir le menu"
         >
-          {menuOpen ? "✕" : "☰"}
+          {mobileMenuOpen ? <IconX size={22} /> : <IconMenu size={22} />}
         </button>
 
-        {/* Navigation links */}
-        <nav className={`navbar-nav ${menuOpen ? "is-open" : ""}`}>
-          <Link
-            to="/"
-            className="nav-link"
-            onClick={() => setMenuOpen(false)}
-          >
-            Accueil
-          </Link>
-          <Link
-            to="/professionals"
-            className="nav-link"
-            id="nav-professionals-link"
-            onClick={() => setMenuOpen(false)}
-          >
-            Professionnels
-          </Link>
-          <Link
-            to="/publications"
-            className="nav-link"
-            id="nav-publications-link"
-            onClick={() => setMenuOpen(false)}
-          >
-            Guides & Infos
-          </Link>
+        {/* Navigation principale */}
+        <nav className={`navbar-nav ${mobileMenuOpen ? "is-open" : ""}`}>
+          {!isAuthenticated || !user ? (
+            /* ========================================== */
+            /* 1. VISITEUR NON CONNECTÉ                   */
+            /* ========================================== */
+            <div className="nav-group-visitor">
+              <Link to="/professionals" className="nav-link" id="nav-find-pro">
+                Trouver un professionnel
+              </Link>
+              <Link to="/publications" className="nav-link" id="nav-guides">
+                Guides
+              </Link>
+              <Link to="/subscriptions" className="nav-link" id="nav-tarifs">
+                Tarifs
+              </Link>
+              <div className="nav-auth-buttons">
+                <Link to="/login" className="nav-btn-link" id="nav-login">
+                  Connexion
+                </Link>
+                <Link to="/register" className="btn btn-primary btn-sm" id="nav-register">
+                  S'inscrire
+                </Link>
+              </div>
+            </div>
+          ) : user.role === "ADMIN" ? (
+            /* ========================================== */
+            /* 2. ADMINISTRATEUR CONNECTÉ                */
+            /* ========================================== */
+            <div className="nav-group-admin">
+              <Link to="/admin/verifications" className="nav-link" id="nav-admin-verif">
+                Vérifications
+              </Link>
+              <Link to="/admin/publications" className="nav-link" id="nav-admin-pubs">
+                Modération Pubs
+              </Link>
+              <Link to="/admin/reports" className="nav-link" id="nav-admin-reports">
+                Signalements
+              </Link>
+              <Link to="/admin/audit-logs" className="nav-link" id="nav-admin-audit">
+                Journal d'audit
+              </Link>
 
-          {isAuthenticated && user ? (
-            <>
-              {user.role === "ADMIN" && (
-                <Link
-                  to="/admin/reports"
-                  className="nav-link"
-                  id="nav-admin-link"
-                  onClick={() => setMenuOpen(false)}
+              {/* Menu utilisateur admin */}
+              <div className="user-menu-container" ref={dropdownRef}>
+                <button
+                  type="button"
+                  className="user-menu-button"
+                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                  aria-expanded={userDropdownOpen}
+                  aria-label="Menu administrateur"
                 >
-                  Administration
-                </Link>
-              )}
-              {user.role !== "ADMIN" && (
-                <Link
-                  to="/subscriptions"
-                  className="nav-link"
-                  id="nav-subscriptions-link"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Abonnement
-                </Link>
-              )}
-              <Link
-                to="/messages"
-                className="nav-link"
-                id="nav-messages-link"
-                onClick={() => setMenuOpen(false)}
-              >
+                  <span className="user-avatar-badge admin-badge">Admin</span>
+                  <IconChevronDown size={14} className={`dropdown-chevron ${userDropdownOpen ? "open" : ""}`} />
+                </button>
+
+                {userDropdownOpen && (
+                  <div className="user-dropdown-menu">
+                    <div className="user-dropdown-header">
+                      <div className="user-dropdown-name">{user.prenom} {user.nom}</div>
+                      <div className="user-dropdown-role">Administrateur</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="user-dropdown-item dropdown-logout-btn"
+                      onClick={handleLogout}
+                    >
+                      <IconLogOut size={16} />
+                      <span>Déconnexion</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : user.role === "PROFESSIONNEL" ? (
+            /* ========================================== */
+            /* 3. PROFESSIONNEL CONNECTÉ                 */
+            /* ========================================== */
+            <div className="nav-group-pro">
+              <Link to="/dashboard" className="nav-link" id="nav-pro-dashboard">
+                Tableau de bord
+              </Link>
+              <Link to="/messages" className="nav-link" id="nav-pro-messages">
                 Messages
               </Link>
-              <Link
-                to="/profile"
-                className="nav-link"
-                onClick={() => setMenuOpen(false)}
-              >
-                Mon Profil
+              <Link to="/profile" className="nav-link" id="nav-pro-agency">
+                Mon agence
               </Link>
-              <div className="nav-user-info">
-                <span className="user-badge user-badge-role">
-                  {user.role === "PROFESSIONNEL"
-                    ? "Professionnel"
-                    : user.role === "ADMIN"
-                    ? "Admin"
-                    : "Voyageur"}
-                </span>
-                <span className="user-name">
-                  {user.prenom} {user.nom}
-                </span>
+
+              {/* Menu utilisateur professionnel */}
+              <div className="user-menu-container" ref={dropdownRef}>
+                <button
+                  type="button"
+                  className="user-menu-button"
+                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                  aria-expanded={userDropdownOpen}
+                  aria-label="Menu utilisateur"
+                >
+                  <span className="user-avatar-initials">{getUserInitials()}</span>
+                  <span className="user-menu-name-label">{user.nom}</span>
+                  <IconChevronDown size={14} className={`dropdown-chevron ${userDropdownOpen ? "open" : ""}`} />
+                </button>
+
+                {userDropdownOpen && (
+                  <div className="user-dropdown-menu">
+                    <div className="user-dropdown-header">
+                      <div className="user-dropdown-name">{user.nom}</div>
+                      <div className="user-dropdown-role">Compte Professionnel</div>
+                    </div>
+                    <Link to="/profile" className="user-dropdown-item">
+                      <IconUser size={16} />
+                      <span>Mon profil</span>
+                    </Link>
+                    <Link to="/subscriptions" className="user-dropdown-item">
+                      <IconCreditCard size={16} />
+                      <span>Mon abonnement</span>
+                    </Link>
+                    <button
+                      type="button"
+                      className="user-dropdown-item dropdown-logout-btn"
+                      onClick={handleLogout}
+                    >
+                      <IconLogOut size={16} />
+                      <span>Déconnexion</span>
+                    </button>
+                  </div>
+                )}
               </div>
-              <button
-                type="button"
-                className="btn btn-outline btn-sm"
-                onClick={handleLogout}
-              >
-                Déconnexion
-              </button>
-            </>
+            </div>
           ) : (
-            <div className="nav-auth-buttons">
-              <Link
-                to="/login"
-                className="btn btn-outline btn-sm"
-                onClick={() => setMenuOpen(false)}
-              >
-                Connexion
+            /* ========================================== */
+            /* 4. VOYAGEUR CONNECTÉ                      */
+            /* ========================================== */
+            <div className="nav-group-voyageur">
+              <Link to="/professionals" className="nav-link" id="nav-voyageur-pros">
+                Trouver un professionnel
               </Link>
-              <Link
-                to="/register"
-                className="btn btn-primary btn-sm"
-                onClick={() => setMenuOpen(false)}
-              >
-                Inscription
+              <Link to="/messages" className="nav-link" id="nav-voyageur-messages">
+                Messages
               </Link>
+              <Link to="/publications" className="nav-link" id="nav-voyageur-guides">
+                Guides
+              </Link>
+
+              {/* Menu utilisateur voyageur */}
+              <div className="user-menu-container" ref={dropdownRef}>
+                <button
+                  type="button"
+                  className="user-menu-button"
+                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                  aria-expanded={userDropdownOpen}
+                  aria-label="Menu utilisateur"
+                >
+                  <span className="user-avatar-initials">{getUserInitials()}</span>
+                  <span className="user-menu-name-label">{user.prenom}</span>
+                  <IconChevronDown size={14} className={`dropdown-chevron ${userDropdownOpen ? "open" : ""}`} />
+                </button>
+
+                {userDropdownOpen && (
+                  <div className="user-dropdown-menu">
+                    <div className="user-dropdown-header">
+                      <div className="user-dropdown-name">{user.prenom} {user.nom}</div>
+                      <div className="user-dropdown-role">Compte Voyageur</div>
+                    </div>
+                    <Link to="/profile" className="user-dropdown-item">
+                      <IconUser size={16} />
+                      <span>Mon profil</span>
+                    </Link>
+                    <Link to="/subscriptions" className="user-dropdown-item">
+                      <IconCreditCard size={16} />
+                      <span>Mon abonnement</span>
+                    </Link>
+                    <button
+                      type="button"
+                      className="user-dropdown-item dropdown-logout-btn"
+                      onClick={handleLogout}
+                    >
+                      <IconLogOut size={16} />
+                      <span>Déconnexion</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </nav>

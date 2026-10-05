@@ -1,4 +1,5 @@
 import React from "react";
+import { IconAlertTriangle, IconCheck, IconX } from "./Icons";
 
 export type AlertType = "error" | "success" | "warning" | "info";
 
@@ -19,10 +20,10 @@ export const Alert: React.FC<AlertProps> = ({
     <div className={`alert alert-${type}`} role="alert">
       <div className="alert-content">
         <span className="alert-icon">
-          {type === "error" && "⚠️"}
-          {type === "success" && "✅"}
-          {type === "warning" && "⚡"}
-          {type === "info" && "ℹ️"}
+          {type === "error" && <IconAlertTriangle size={18} />}
+          {type === "success" && <IconCheck size={18} />}
+          {type === "warning" && <IconAlertTriangle size={18} />}
+          {type === "info" && <IconCheck size={18} />}
         </span>
         <span className="alert-message">{message}</span>
       </div>
@@ -33,7 +34,7 @@ export const Alert: React.FC<AlertProps> = ({
           onClick={onClose}
           aria-label="Fermer"
         >
-          ×
+          <IconX size={16} />
         </button>
       )}
     </div>

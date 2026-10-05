@@ -1,7 +1,8 @@
 import React from "react";
+import { IconFileText } from "./Icons";
 
 interface EmptyStateProps {
-  icon?: string;
+  icon?: React.ReactNode;
   title: string;
   description?: string;
   actionText?: string;
@@ -9,7 +10,7 @@ interface EmptyStateProps {
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
-  icon = "📂",
+  icon = <IconFileText size={36} />,
   title,
   description,
   actionText,
