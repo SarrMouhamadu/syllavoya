@@ -1,0 +1,26 @@
+# Dépendances et builds
+node_modules
+apps/api/node_modules
+apps/web/node_modules
+dist
+apps/api/dist
+apps/web/dist
+apps/web/dist-ssr
+
+# Git et configuration
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# Divers et IDE
+*.log
+.DS_Store
+.agents
+.claude
+.cursor
+.devin
+coverage
+scratch
+docker/postgres/data

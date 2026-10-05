@@ -1,0 +1,41 @@
+# =============================================================================
+# Sylla Voyage - Dockerfile Web (React / Vite / Single Page App)
+# =============================================================================
+
+# Étape 1 : Build de l'application React avec Vite
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Copie des manifestes de dépendances
+COPY apps/web/package*.json ./
+RUN npm ci --ignore-scripts
+
+# Copie des sources et fichiers de configuration
+COPY apps/web/ ./
+
+# Injection de l'URL API pour le build Vite (remplaçable via build arg / env)
+ARG VITE_API_URL=http://localhost:3000/api
+ENV VITE_API_URL=$VITE_API_URL
+
+# Build de production
+RUN npm run build
+
+# Étape 2 : Serveur léger pour les fichiers statiques de production
+FROM node:22-alpine AS runner
+
+WORKDIR /app
+
+# Utilisation de serve pour servir le bundle SPA
+RUN npm install -g serve
+
+COPY --from=builder /app/dist ./dist
+
+ENV PORT=5173
+EXPOSE 5173
+
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 --start-period=5s \
+  CMD ["node", "-e", "fetch('http://localhost:5173').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+
+# -s réécrit les routes non trouvées vers index.html pour React Router
+CMD ["sh", "-c", "serve -s dist -l ${PORT:-5173}"]
