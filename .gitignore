@@ -4,3 +4,9 @@ dist/
 .env.*
 !.env.example
 .DS_Store
+
+# Tooling & IDE helpers
+.agents/
+.claude/
+.cursor/
+.devin/

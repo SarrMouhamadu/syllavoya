@@ -1,22 +1,7 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
+import "temporal-polyfill/full/global";
+import { app } from "./app.js";
+import { config } from "./config/env.js";
 
-dotenv.config();
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.use(cors());
-app.use(express.json());
-
-app.get("/api/health", (_req, res) => {
-  res.json({
-    status: "ok",
-    service: "sylla-voyage-api"
-  });
-});
-
-app.listen(PORT, () => {
-  console.log(`API running on http://localhost:${PORT}`);
+app.listen(config.port, () => {
+  console.log(`API running on http://localhost:${config.port}`);
 });

@@ -1,0 +1,175 @@
+// use prisma-8
+model Utilisateur {
+  id           String   @id @default(uuid())
+  nom          String
+  prenom       String
+  email        String   @unique
+  telephone    String?
+  mot_de_passe String
+  role         String
+  statut       String
+  created_at   DateTime @default(now())
+
+  @@map("utilisateur")
+}
+
+model Professionnel {
+  id                            String      @id @default(uuid())
+  utilisateur_id                String      @unique
+  nom_structure                 String
+  description                   String?
+  informations_professionnelles String?
+  statut_verification           String
+  created_at                    DateTime    @default(now())
+
+  utilisateur                   Utilisateur @relation(fields: [utilisateur_id], references: [id], onDelete: Cascade)
+
+  @@map("professionnel")
+}
+
+model DocumentVerification {
+  id               String        @id @default(uuid())
+  professionnel_id String
+  type_document    String
+  fichier          String
+  statut           String
+  created_at       DateTime      @default(now())
+
+  professionnel    Professionnel @relation(fields: [professionnel_id], references: [id], onDelete: Cascade)
+
+  @@map("document_verification")
+}
+
+model Verification {
+  id               String        @id @default(uuid())
+  professionnel_id String
+  statut           String
+  date_debut       DateTime      @default(now())
+  date_decision    DateTime?
+  commentaire      String?
+
+  professionnel    Professionnel @relation(fields: [professionnel_id], references: [id], onDelete: Cascade)
+
+  @@map("verification")
+}
+
+model FormuleAbonnement {
+  id               String @id @default(uuid())
+  nom              String
+  duree            String
+  prix             Int
+  type_utilisateur String
+  statut           String
+
+  @@map("formule_abonnement")
+}
+
+model Abonnement {
+  id             String            @id @default(uuid())
+  utilisateur_id String
+  formule_id     String
+  date_debut     DateTime
+  date_fin       DateTime
+  statut         String
+
+  utilisateur    Utilisateur       @relation(fields: [utilisateur_id], references: [id], onDelete: Restrict)
+  formule        FormuleAbonnement @relation(fields: [formule_id], references: [id], onDelete: Restrict)
+
+  @@map("abonnement")
+}
+
+model Paiement {
+  id                String     @id @default(uuid())
+  abonnement_id     String
+  reference         String     @unique
+  montant           Int
+  statut            String
+  moyen_paiement    String
+  date_creation     DateTime   @default(now())
+  date_confirmation DateTime?
+
+  abonnement        Abonnement @relation(fields: [abonnement_id], references: [id], onDelete: Restrict)
+
+  @@map("paiement")
+}
+
+model Publication {
+  id               String        @id @default(uuid())
+  professionnel_id String
+  titre            String
+  contenu          String
+  statut           String
+  date_creation    DateTime      @default(now())
+  date_publication DateTime?
+
+  professionnel    Professionnel @relation(fields: [professionnel_id], references: [id], onDelete: Cascade)
+
+  @@map("publication")
+}
+
+model Conversation {
+  id               String        @id @default(uuid())
+  voyageur_id      String
+  professionnel_id String
+  date_creation    DateTime      @default(now())
+  statut           String
+
+  voyageur         Utilisateur   @relation(fields: [voyageur_id], references: [id], onDelete: Restrict)
+  professionnel    Professionnel @relation(fields: [professionnel_id], references: [id], onDelete: Restrict)
+
+  @@map("conversation")
+}
+
+model Message {
+  id              String       @id @default(uuid())
+  conversation_id String
+  expediteur_id   String
+  contenu         String
+  date_envoi      DateTime     @default(now())
+  statut          String
+
+  conversation    Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  expediteur      Utilisateur  @relation(fields: [expediteur_id], references: [id], onDelete: Restrict)
+
+  @@map("message")
+}
+
+model DocumentEchange {
+  id              String       @id @default(uuid())
+  conversation_id String
+  expediteur_id   String
+  fichier         String
+  date_envoi      DateTime     @default(now())
+
+  conversation    Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  expediteur      Utilisateur  @relation(fields: [expediteur_id], references: [id], onDelete: Restrict)
+
+  @@map("document_echange")
+}
+
+model Signalement {
+  id             String      @id @default(uuid())
+  utilisateur_id String
+  type_cible     String
+  cible_id       String
+  motif          String
+  description    String
+  statut         String
+  date_creation  DateTime    @default(now())
+
+  utilisateur    Utilisateur @relation(fields: [utilisateur_id], references: [id], onDelete: Restrict)
+
+  @@map("signalement")
+}
+
+model AuditLog {
+  id                           String       @id @default(uuid())
+  utilisateur_id               String?
+  action                       String
+  date                         DateTime     @default(now())
+  informations_complementaires String?
+
+  utilisateur                  Utilisateur? @relation(fields: [utilisateur_id], references: [id], onDelete: SetNull)
+
+  @@map("audit_log")
+}
