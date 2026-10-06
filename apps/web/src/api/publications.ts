@@ -8,6 +8,8 @@ export interface ApiPublication {
   statut: string;
   date_creation: string;
   date_publication: string | null;
+  commentaire_moderation?: string | null;
+  commentaire?: string | null;
   professionnel?: {
     id: string;
     nom_structure: string;
@@ -26,6 +28,21 @@ export interface PublicationDetailResponse {
   data: {
     publication: ApiPublication;
   };
+}
+
+export interface PublicationComment {
+  id: string;
+  userId: string;
+  userName: string;
+  userRole: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface PublicationInteractions {
+  likesCount: number;
+  userLiked: boolean;
+  comments: PublicationComment[];
 }
 
 export const publicationsApi = {
@@ -66,4 +83,42 @@ export const publicationsApi = {
       method: "DELETE",
     });
   },
+
+  getInteractions: async (id: string): Promise<{ success: boolean; data: PublicationInteractions }> => {
+    return apiFetch<{ success: boolean; data: PublicationInteractions }>(`/publications/${id}/interactions`, {
+      method: "GET",
+    });
+  },
+
+  toggleLike: async (id: string): Promise<{ success: boolean; data: { likesCount: number; userLiked: boolean } }> => {
+    return apiFetch<{ success: boolean; data: { likesCount: number; userLiked: boolean } }>(`/publications/${id}/like`, {
+      method: "POST",
+    });
+  },
+
+  addComment: async (
+    id: string,
+    content: string
+  ): Promise<{ success: boolean; data: { comment: PublicationComment; interactions: PublicationInteractions } }> => {
+    return apiFetch<{ success: boolean; data: { comment: PublicationComment; interactions: PublicationInteractions } }>(
+      `/publications/${id}/comments`,
+      {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      }
+    );
+  },
 };
+
+export function parsePublicationContent(contenu: string): { text: string; photoUrl: string | null } {
+  if (!contenu) return { text: "", photoUrl: null };
+  const photoMatch = contenu.match(/\[PHOTO:(data:image\/[^\]]+)\]/);
+  if (photoMatch) {
+    return {
+      text: contenu.replace(photoMatch[0], "").trim(),
+      photoUrl: photoMatch[1],
+    };
+  }
+  return { text: contenu, photoUrl: null };
+}
+

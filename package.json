@@ -1,0 +1,11 @@
+{
+  "name": "sylla-voyage",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sylla Voyage - Plateforme d'agences et guides au Sénégal",
+  "scripts": {
+    "dev": "./start-dev.sh",
+    "test": "npm --prefix apps/api test",
+    "build": "npm --prefix apps/web run build"
+  }
+}

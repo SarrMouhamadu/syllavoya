@@ -193,7 +193,7 @@ export class AuthService {
     if (!data.telephone || typeof data.telephone !== "string" || !data.telephone.trim()) {
       throw new AppError("Le numéro de téléphone est obligatoire", 400, "INVALID_PHONE");
     }
-    const normalizedPhone = validateAndNormalizeSenegalPhone(data.telephone);
+    const normalizedPhone = validateAndNormalizeSenegalPhone(data.telephone, { allowInternational: true });
 
     // 3. Pièce d'identité avec fichier réel obligatoire
     if (!file || !file.filename || !file.size) {
@@ -384,7 +384,7 @@ export class AuthService {
 
     if (!user) {
       try {
-        const phone = validateAndNormalizeSenegalPhone(rawIdentifier);
+        const phone = validateAndNormalizeSenegalPhone(rawIdentifier, { allowInternational: true });
         user = await db.orm.public.Utilisateur
           .where({ telephone: phone })
           .first();

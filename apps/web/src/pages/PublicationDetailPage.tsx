@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { publicationsApi, type ApiPublication } from "../api/publications";
+import { publicationsApi, parsePublicationContent, type ApiPublication } from "../api/publications";
+import { useSubscriptionAccess } from "../hooks/useSubscriptionAccess";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { Alert } from "../components/Alert";
+import { LockedSubscriptionPaywall } from "../components/LockedSubscriptionPaywall";
+import { PublicationInteractions } from "../components/PublicationInteractions";
 import {
   IconArrowLeft,
   IconBuilding,
@@ -13,9 +16,10 @@ import {
 
 export const PublicationDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { loading: accessLoading, hasAccess } = useSubscriptionAccess();
 
   const [pub, setPub] = useState<ApiPublication | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchPublication = useCallback(async () => {
@@ -37,8 +41,10 @@ export const PublicationDetailPage: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
-    fetchPublication();
-  }, [fetchPublication]);
+    if (hasAccess) {
+      fetchPublication();
+    }
+  }, [hasAccess, fetchPublication]);
 
   const displayDate = pub?.date_publication || pub?.date_creation;
   const formattedDate = displayDate
@@ -60,15 +66,36 @@ export const PublicationDetailPage: React.FC = () => {
           </Link>
         </div>
 
-        {/* État de chargement */}
-        {loading && (
+        {/* État de chargement de l'accès */}
+        {accessLoading && (
+          <div className="center-container">
+            <LoadingSpinner message="Vérification de votre abonnement..." size="large" />
+          </div>
+        )}
+
+        {/* Verrouillage payant si non abonné */}
+        {!accessLoading && !hasAccess && (
+          <LockedSubscriptionPaywall
+            title="Guide de voyage réservé aux abonnés"
+            subtitle="Pour lire l'intégralité de cet article et profiter des recommandations de voyage exclusives, un abonnement actif est requis."
+            perks={[
+              "Lecture intégrale de tous les guides et itinéraires exclusifs",
+              "Conseils et astuces rédigés par des guides et agences certifiés",
+              "Mises à jour régulières sur les formalités et bons plans",
+              "Accès complet à l'annuaire et messagerie directe (5 000 FCFA/mois)",
+            ]}
+          />
+        )}
+
+        {/* État de chargement si abonné */}
+        {!accessLoading && hasAccess && loading && (
           <div className="center-container">
             <LoadingSpinner message="Chargement de la publication..." size="large" />
           </div>
         )}
 
-        {/* État d'erreur */}
-        {!loading && error && (
+        {/* État d'erreur si abonné */}
+        {!accessLoading && hasAccess && !loading && error && (
           <div className="state-container">
             <Alert type="error" message={error} />
             <Link to="/publications" className="btn btn-outline" style={{ marginTop: "14px" }}>
@@ -77,8 +104,8 @@ export const PublicationDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* Fiche détaillée de la publication */}
-        {!loading && !error && pub && (
+        {/* Fiche détaillée de la publication si abonné */}
+        {!accessLoading && hasAccess && !loading && !error && pub && (
           <article className="pub-detail-card">
             <header className="pub-detail-header">
               <div className="pub-detail-meta-top">
@@ -117,9 +144,27 @@ export const PublicationDetailPage: React.FC = () => {
               )}
             </header>
 
-            <div className="pub-detail-body">
-              <p className="pub-detail-content">{pub.contenu}</p>
-            </div>
+            {(() => {
+              const parsed = parsePublicationContent(pub.contenu);
+              return (
+                <>
+                  {parsed.photoUrl && (
+                    <div className="pub-detail-media">
+                      <img src={parsed.photoUrl} alt={pub.titre} className="pub-detail-hero-img" />
+                    </div>
+                  )}
+
+                  <div className="pub-detail-body">
+                    <p className="pub-detail-content">{parsed.text}</p>
+                  </div>
+
+                  {/* Section J'aime & Commentaires */}
+                  <div className="pub-detail-interactions-section">
+                    <PublicationInteractions publicationId={pub.id} defaultExpandedComments={true} />
+                  </div>
+                </>
+              );
+            })()}
 
             {pub.professionnel && (
               <footer className="pub-detail-footer">

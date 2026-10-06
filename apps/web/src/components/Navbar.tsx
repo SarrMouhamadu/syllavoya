@@ -9,6 +9,7 @@ import {
   IconChevronDown,
   IconMenu,
   IconX,
+  IconFileText,
 } from "./Icons";
 
 export const Navbar: React.FC = () => {
@@ -64,10 +65,10 @@ export const Navbar: React.FC = () => {
           <span className="brand-text">Sylla Voyage</span>
         </Link>
 
-        {/* Mobile Toggle */}
+        {/* Mobile Toggle (strictement masqué sur desktop) */}
         <button
           type="button"
-          className="navbar-mobile-toggle"
+          className="navbar-toggle"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-expanded={mobileMenuOpen}
           aria-label="Ouvrir le menu"
@@ -82,15 +83,17 @@ export const Navbar: React.FC = () => {
             /* 1. VISITEUR NON CONNECTÉ                   */
             /* ========================================== */
             <div className="nav-group-visitor">
-              <Link to="/professionals" className="nav-link" id="nav-find-pro">
-                Trouver un professionnel
-              </Link>
-              <Link to="/publications" className="nav-link" id="nav-guides">
-                Guides
-              </Link>
-              <Link to="/subscriptions" className="nav-link" id="nav-tarifs">
-                Tarifs
-              </Link>
+              <div className="nav-links-list">
+                <Link to="/publications" className="nav-link" id="nav-offres">
+                  Offres
+                </Link>
+                <Link to="/professionals" className="nav-link" id="nav-find-pro">
+                  Trouver un professionnel
+                </Link>
+                <Link to="/subscriptions" className="nav-link" id="nav-tarifs">
+                  Tarifs
+                </Link>
+              </div>
               <div className="nav-auth-buttons">
                 <Link to="/login" className="nav-btn-link" id="nav-login">
                   Connexion
@@ -105,24 +108,32 @@ export const Navbar: React.FC = () => {
             /* 2. ADMINISTRATEUR CONNECTÉ                */
             /* ========================================== */
             <div className="nav-group-admin">
-              <Link to="/admin/verifications" className="nav-link" id="nav-admin-verif">
-                Vérifications
-              </Link>
-              <Link to="/admin/publications" className="nav-link" id="nav-admin-pubs">
-                Modération Pubs
-              </Link>
-              <Link to="/admin/reports" className="nav-link" id="nav-admin-reports">
-                Signalements
-              </Link>
-              <Link to="/admin/audit-logs" className="nav-link" id="nav-admin-audit">
-                Journal d'audit
-              </Link>
+              <div className="nav-links-list">
+                <Link to="/dashboard" className="nav-link" id="nav-admin-dashboard">
+                  Tableau de bord
+                </Link>
+                <Link to="/publications" className="nav-link" id="nav-admin-offres">
+                  Offres
+                </Link>
+                <Link to="/admin/verifications" className="nav-link" id="nav-admin-verif">
+                  Vérifications
+                </Link>
+                <Link to="/admin/publications" className="nav-link" id="nav-admin-pubs">
+                  Modération Pubs
+                </Link>
+                <Link to="/admin/reports" className="nav-link" id="nav-admin-reports">
+                  Signalements
+                </Link>
+                <Link to="/admin/audit-logs" className="nav-link" id="nav-admin-audit">
+                  Journal d'audit
+                </Link>
+              </div>
 
               {/* Menu utilisateur admin */}
               <div className="user-menu-container" ref={dropdownRef}>
                 <button
                   type="button"
-                  className="user-menu-button"
+                  className="user-menu-btn"
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                   aria-expanded={userDropdownOpen}
                   aria-label="Menu administrateur"
@@ -137,6 +148,10 @@ export const Navbar: React.FC = () => {
                       <div className="user-dropdown-name">{user.prenom} {user.nom}</div>
                       <div className="user-dropdown-role">Administrateur</div>
                     </div>
+                    <Link to="/dashboard" className="user-dropdown-item">
+                      <IconFileText size={16} />
+                      <span>Tableau de bord</span>
+                    </Link>
                     <button
                       type="button"
                       className="user-dropdown-item dropdown-logout-btn"
@@ -154,21 +169,26 @@ export const Navbar: React.FC = () => {
             /* 3. PROFESSIONNEL CONNECTÉ                 */
             /* ========================================== */
             <div className="nav-group-pro">
-              <Link to="/dashboard" className="nav-link" id="nav-pro-dashboard">
-                Tableau de bord
-              </Link>
-              <Link to="/messages" className="nav-link" id="nav-pro-messages">
-                Messages
-              </Link>
-              <Link to="/profile" className="nav-link" id="nav-pro-agency">
-                Mon agence
-              </Link>
+              <div className="nav-links-list">
+                <Link to="/dashboard" className="nav-link" id="nav-pro-dashboard">
+                  Tableau de bord
+                </Link>
+                <Link to="/publications" className="nav-link" id="nav-pro-offres">
+                  Offres
+                </Link>
+                <Link to="/messages" className="nav-link" id="nav-pro-messages">
+                  Messages
+                </Link>
+                <Link to="/profile" className="nav-link" id="nav-pro-agency">
+                  Mon agence
+                </Link>
+              </div>
 
               {/* Menu utilisateur professionnel */}
               <div className="user-menu-container" ref={dropdownRef}>
                 <button
                   type="button"
-                  className="user-menu-button"
+                  className="user-menu-btn"
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                   aria-expanded={userDropdownOpen}
                   aria-label="Menu utilisateur"
@@ -209,21 +229,23 @@ export const Navbar: React.FC = () => {
             /* 4. VOYAGEUR CONNECTÉ                      */
             /* ========================================== */
             <div className="nav-group-voyageur">
-              <Link to="/professionals" className="nav-link" id="nav-voyageur-pros">
-                Trouver un professionnel
-              </Link>
-              <Link to="/messages" className="nav-link" id="nav-voyageur-messages">
-                Messages
-              </Link>
-              <Link to="/publications" className="nav-link" id="nav-voyageur-guides">
-                Guides
-              </Link>
+              <div className="nav-links-list">
+                <Link to="/publications" className="nav-link" id="nav-voyageur-offres">
+                  Offres
+                </Link>
+                <Link to="/professionals" className="nav-link" id="nav-voyageur-pros">
+                  Trouver un professionnel
+                </Link>
+                <Link to="/messages" className="nav-link" id="nav-voyageur-messages">
+                  Messages
+                </Link>
+              </div>
 
               {/* Menu utilisateur voyageur */}
               <div className="user-menu-container" ref={dropdownRef}>
                 <button
                   type="button"
-                  className="user-menu-button"
+                  className="user-menu-btn"
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                   aria-expanded={userDropdownOpen}
                   aria-label="Menu utilisateur"

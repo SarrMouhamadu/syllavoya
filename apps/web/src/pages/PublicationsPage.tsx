@@ -1,20 +1,25 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { publicationsApi, type ApiPublication } from "../api/publications";
+import { publicationsApi, parsePublicationContent, type ApiPublication } from "../api/publications";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { Alert } from "../components/Alert";
 import { EmptyState } from "../components/EmptyState";
+import { useSubscriptionAccess } from "../hooks/useSubscriptionAccess";
+import { PublicationInteractions } from "../components/PublicationInteractions";
 import {
   IconFileText,
   IconBuilding,
   IconCalendar,
   IconRefresh,
   IconArrowRight,
+  IconLock,
+  IconShieldCheck,
 } from "../components/Icons";
 
 export const PublicationsPage: React.FC = () => {
+  const { loading: accessLoading, hasAccess } = useSubscriptionAccess();
   const [publications, setPublications] = useState<ApiPublication[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchPublications = useCallback(async () => {
@@ -28,7 +33,7 @@ export const PublicationsPage: React.FC = () => {
         setPublications([]);
       }
     } catch (err: any) {
-      setError(err?.message || "Impossible de charger les publications de voyage.");
+      setError(err?.message || "Impossible de charger les offres et publications.");
     } finally {
       setLoading(false);
     }
@@ -43,17 +48,17 @@ export const PublicationsPage: React.FC = () => {
       <div className="container">
         {/* Header de section */}
         <div className="page-header">
-          <span className="page-header-badge">Guides & Conseils</span>
-          <h1 className="page-title">Publications & Conseils de Voyage</h1>
+          <span className="page-header-badge">Offres & Actualités</span>
+          <h1 className="page-title">Offres & Publications de Voyage</h1>
           <p className="page-subtitle">
-            Circuits, recommandations et informations rédigés par les professionnels certifiés de Sylla Voyage.
+            Découvrez toutes les offres de séjours, circuits et annonces partagés par l'administration et les agences vérifiées de Sylla Voyage.
           </p>
         </div>
 
-        {/* État de chargement */}
+        {/* État de chargement des publications */}
         {loading && (
           <div className="center-container">
-            <LoadingSpinner message="Chargement des publications de voyage..." size="large" />
+            <LoadingSpinner message="Chargement des offres et publications de voyage..." size="large" />
           </div>
         )}
 
@@ -73,13 +78,26 @@ export const PublicationsPage: React.FC = () => {
           </div>
         )}
 
+        {/* Bannière discrète d'abonnement si non abonné */}
+        {!accessLoading && !hasAccess && !loading && !error && publications.length > 0 && (
+          <div className="traveler-sub-banner" style={{ marginBottom: "28px" }}>
+            <div className="traveler-sub-banner-text">
+              <IconLock size={18} />
+              <span>Abonnez-vous pour contacter directement les agences et débloquer tous les détails exclusifs.</span>
+            </div>
+            <Link to="/subscriptions" className="btn btn-primary btn-sm">
+              Découvrir les offres (5 000 FCFA/mois)
+            </Link>
+          </div>
+        )}
+
         {/* État vide */}
         {!loading && !error && publications.length === 0 && (
           <div className="state-container">
             <EmptyState
               icon={<IconFileText size={40} />}
-              title="Aucune publication disponible pour le moment"
-              description="Les professionnels vérifiés publieront très prochainement leurs itinéraires et informations de voyage."
+              title="Aucune offre publiée pour le moment"
+              description="Les agences vérifiées et l'administration publieront très prochainement leurs séjours et opportunités de voyage."
             />
           </div>
         )}
@@ -97,21 +115,40 @@ export const PublicationsPage: React.FC = () => {
                   })
                 : null;
 
+              const parsed = parsePublicationContent(pub.contenu);
+              const isOfficialAdmin =
+                pub.professionnel?.nom_structure?.toLowerCase().includes("admin") ||
+                pub.professionnel?.nom_structure === "Administration Sylla Voyage";
+
               return (
                 <article key={pub.id} className="pub-card" id={`pub-card-${pub.id}`}>
+                  {parsed.photoUrl && (
+                    <div className="pub-card-media">
+                      <img src={parsed.photoUrl} alt={pub.titre} className="pub-card-img" />
+                    </div>
+                  )}
+
                   <div className="pub-card-header">
-                    <span className="pub-tag">Circuit & Conseils</span>
+                    <span className={`pub-tag ${isOfficialAdmin ? "pub-tag-official" : ""}`}>
+                      {isOfficialAdmin ? "Officiel Sylla Voyage" : "Offre d'agence"}
+                    </span>
                     {pub.professionnel && (
                       <span className="pub-author">
                         <IconBuilding size={14} />
                         <span>{pub.professionnel.nom_structure}</span>
+                        {!isOfficialAdmin && (
+                          <IconShieldCheck size={13} style={{ color: "var(--color-primary)", marginLeft: "4px" }} />
+                        )}
                       </span>
                     )}
                   </div>
 
                   <h2 className="pub-title">{pub.titre}</h2>
 
-                  <p className="pub-content-preview">{pub.contenu}</p>
+                  <p className="pub-content-preview">{parsed.text}</p>
+
+                  {/* Likes & Commentaires */}
+                  <PublicationInteractions publicationId={pub.id} compact />
 
                   <div className="pub-card-footer">
                     {formattedDate && (
@@ -125,7 +162,7 @@ export const PublicationsPage: React.FC = () => {
                       className="btn btn-primary btn-block btn-lg"
                       id={`read-pub-${pub.id}`}
                     >
-                      <span>Lire la suite</span>
+                      <span>Consulter l'offre</span>
                       <IconArrowRight size={14} />
                     </Link>
                   </div>
@@ -138,3 +175,4 @@ export const PublicationsPage: React.FC = () => {
     </div>
   );
 };
+

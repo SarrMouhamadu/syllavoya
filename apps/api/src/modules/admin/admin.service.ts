@@ -1,7 +1,19 @@
 import { randomUUID } from "node:crypto";
 import { Temporal } from "temporal-polyfill";
+import bcrypt from "bcryptjs";
 import { db } from "../../db.js";
 import { AppError } from "../../errors/AppError.js";
+import { validateAndNormalizeSenegalPhone } from "../../utils/phone.js";
+
+export interface CreateProfessionalAccountDTO {
+  nom_structure: string;
+  nom: string;
+  prenom?: string;
+  email: string;
+  telephone: string;
+  mot_de_passe: string;
+  description?: string;
+}
 
 export interface TreatVerificationDTO {
   decision: "ACCEPTEE" | "REFUSEE" | "SUSPENDUE" | "REVOQUEE" | "APPROUVEE" | "REJETEE";
@@ -493,6 +505,193 @@ export class AdminService {
       date: l.date.toString(),
       informations_complementaires: l.informations_complementaires,
     }));
+  }
+
+  /**
+   * Administrateur : créer directement un compte agence professionnelle avec ses identifiants.
+   */
+  async createProfessionalAccount(
+    data: CreateProfessionalAccountDTO,
+    adminUserId: string = "ADMIN"
+  ): Promise<{
+    user: { id: string; nom: string; prenom: string; email: string; telephone: string; role: string };
+    professional: { id: string; nom_structure: string; statut_verification: string };
+  }> {
+    if (!data.nom_structure || typeof data.nom_structure !== "string" || !data.nom_structure.trim()) {
+      throw new AppError("Le nom de l'agence (structure) est obligatoire", 400, "VALIDATION_ERROR");
+    }
+
+    if (!data.nom || typeof data.nom !== "string" || !data.nom.trim()) {
+      throw new AppError("Le nom du responsable est obligatoire", 400, "VALIDATION_ERROR");
+    }
+
+    if (!data.email || typeof data.email !== "string" || !data.email.trim()) {
+      throw new AppError("L'adresse email est obligatoire", 400, "VALIDATION_ERROR");
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const normalizedEmail = data.email.trim().toLowerCase();
+    if (!emailRegex.test(normalizedEmail)) {
+      throw new AppError("L'adresse email fournie est invalide", 400, "VALIDATION_ERROR");
+    }
+
+    const existingEmail = await db.orm.public.Utilisateur
+      .where({ email: normalizedEmail })
+      .first();
+    if (existingEmail) {
+      throw new AppError("Un compte avec cette adresse email existe déjà", 409, "EMAIL_ALREADY_EXISTS");
+    }
+
+    if (!data.telephone || typeof data.telephone !== "string" || !data.telephone.trim()) {
+      throw new AppError("Le numéro de téléphone est obligatoire", 400, "INVALID_PHONE");
+    }
+
+    const normalizedPhone = validateAndNormalizeSenegalPhone(data.telephone, { allowInternational: true });
+    const existingPhone = await db.orm.public.Utilisateur
+      .where({ telephone: normalizedPhone })
+      .first();
+    if (existingPhone) {
+      throw new AppError("Un compte avec ce numéro de téléphone existe déjà", 409, "PHONE_ALREADY_EXISTS");
+    }
+
+    if (!data.mot_de_passe || typeof data.mot_de_passe !== "string" || data.mot_de_passe.trim().length < 6) {
+      throw new AppError("Le mot de passe doit comporter au moins 6 caractères", 400, "VALIDATION_ERROR");
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(data.mot_de_passe.trim(), salt);
+
+    const now = Temporal.Now.instant();
+    const userId = randomUUID();
+    const proId = randomUUID();
+    const verificationId = randomUUID();
+
+    const createdUser = await db.orm.public.Utilisateur.create({
+      id: userId,
+      nom: data.nom.trim(),
+      prenom: (data.prenom || "").trim(),
+      email: normalizedEmail,
+      telephone: normalizedPhone,
+      mot_de_passe: hashedPassword,
+      role: "PROFESSIONNEL",
+      statut: "ACTIF",
+      created_at: now,
+    });
+
+    const createdPro = await db.orm.public.Professionnel.create({
+      id: proId,
+      utilisateur_id: userId,
+      nom_structure: data.nom_structure.trim(),
+      description: data.description ? data.description.trim() : null,
+      statut_verification: "VERIFIE",
+      created_at: now,
+    });
+
+    await db.orm.public.Verification.create({
+      id: verificationId,
+      professionnel_id: proId,
+      statut: "APPROUVEE",
+      date_debut: now,
+      date_decision: now,
+      commentaire: "Compte créé et vérifié directement par l'administrateur",
+    });
+
+    await this.recordAuditLog(adminUserId, "CREATION_COMPTE_PROFESSIONNEL", {
+      professionnel_id: proId,
+      utilisateur_id: userId,
+      nom_structure: data.nom_structure.trim(),
+      email: normalizedEmail,
+      telephone: normalizedPhone,
+    });
+
+    return {
+      user: {
+        id: createdUser.id,
+        nom: createdUser.nom,
+        prenom: createdUser.prenom,
+        email: createdUser.email,
+        telephone: createdUser.telephone!,
+        role: createdUser.role,
+      },
+      professional: {
+        id: createdPro.id,
+        nom_structure: createdPro.nom_structure,
+        statut_verification: createdPro.statut_verification,
+      },
+    };
+  }
+
+  async getFinancialStats(): Promise<{
+    chiffreAffairesTotal: number;
+    agences: {
+      total: number;
+      chiffreAffaires: number;
+    };
+    voyageurs: {
+      total: number;
+      chiffreAffaires: number;
+    };
+  }> {
+    const [utilisateurs, professionnels, abonnements, formules, paiements] = await Promise.all([
+      db.orm.public.Utilisateur.all(),
+      db.orm.public.Professionnel.all(),
+      db.orm.public.Abonnement.all(),
+      db.orm.public.FormuleAbonnement.all(),
+      db.orm.public.Paiement.all(),
+    ]);
+
+    const totalAgences = professionnels.length;
+    const totalVoyageurs = utilisateurs.filter(
+      (u) => (u.role || "").toUpperCase() === "VOYAGEUR"
+    ).length;
+
+    const formuleTypeMap = new Map<string, string>();
+    for (const f of formules) {
+      formuleTypeMap.set(f.id, (f.type_utilisateur || "").toUpperCase());
+    }
+
+    const userRoleMap = new Map<string, string>();
+    for (const u of utilisateurs) {
+      userRoleMap.set(u.id, (u.role || "").toUpperCase());
+    }
+
+    const abonnementTypeMap = new Map<string, string>();
+    for (const sub of abonnements) {
+      const typeFromFormula = formuleTypeMap.get(sub.formule_id);
+      const typeFromUser = userRoleMap.get(sub.utilisateur_id);
+      abonnementTypeMap.set(sub.id, typeFromFormula || typeFromUser || "VOYAGEUR");
+    }
+
+    let caAgences = 0;
+    let caVoyageurs = 0;
+    let caTotal = 0;
+
+    for (const p of paiements) {
+      const statut = (p.statut || "").toUpperCase();
+      if (statut === "CONFIRME") {
+        const montant = Number(p.montant) || 0;
+        caTotal += montant;
+
+        const subType = abonnementTypeMap.get(p.abonnement_id);
+        if (subType === "PROFESSIONNEL") {
+          caAgences += montant;
+        } else {
+          caVoyageurs += montant;
+        }
+      }
+    }
+
+    return {
+      chiffreAffairesTotal: caTotal,
+      agences: {
+        total: totalAgences,
+        chiffreAffaires: caAgences,
+      },
+      voyageurs: {
+        total: totalVoyageurs,
+        chiffreAffaires: caVoyageurs,
+      },
+    };
   }
 }
 

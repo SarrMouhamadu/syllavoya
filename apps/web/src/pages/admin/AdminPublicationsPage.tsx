@@ -9,6 +9,7 @@ import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { EmptyState } from "../../components/EmptyState";
 import { Alert } from "../../components/Alert";
 import { IconCheck, IconX } from "../../components/Icons";
+import { parsePublicationContent } from "../../api/publications";
 
 export const AdminPublicationsPage: React.FC = () => {
   const [publications, setPublications] = useState<AdminPublication[]>([]);
@@ -510,25 +511,39 @@ export const AdminPublicationsPage: React.FC = () => {
                 </div>
 
                 {/* Contenu de la publication */}
-                <div style={{ marginBottom: "1.25rem" }}>
-                  <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#64748b", margin: "0 0 6px", textTransform: "uppercase" }}>
-                    Contenu rédigé :
-                  </h4>
-                  <div
-                    style={{
-                      backgroundColor: "#f8fafc",
-                      borderRadius: "8px",
-                      padding: "1rem",
-                      fontSize: "14px",
-                      color: "#334155",
-                      lineHeight: 1.6,
-                      whiteSpace: "pre-wrap",
-                      border: "1px solid #f1f5f9",
-                    }}
-                  >
-                    {pub.contenu}
-                  </div>
-                </div>
+                {(() => {
+                  const parsed = parsePublicationContent(pub.contenu);
+                  return (
+                    <div style={{ marginBottom: "1.25rem" }}>
+                      {parsed.photoUrl && (
+                        <div style={{ marginBottom: "12px", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                          <img
+                            src={parsed.photoUrl}
+                            alt={pub.titre}
+                            style={{ width: "100%", maxHeight: "320px", objectFit: "cover", display: "block" }}
+                          />
+                        </div>
+                      )}
+                      <h4 style={{ fontSize: "13px", fontWeight: 700, color: "#64748b", margin: "0 0 6px", textTransform: "uppercase" }}>
+                        Contenu rédigé :
+                      </h4>
+                      <div
+                        style={{
+                          backgroundColor: "#f8fafc",
+                          borderRadius: "8px",
+                          padding: "1rem",
+                          fontSize: "14px",
+                          color: "#334155",
+                          lineHeight: 1.6,
+                          whiteSpace: "pre-wrap",
+                          border: "1px solid #f1f5f9",
+                        }}
+                      >
+                        {parsed.text}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Information sur l'auteur professionnel */}
                 <div

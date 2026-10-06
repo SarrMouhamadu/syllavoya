@@ -21,6 +21,8 @@ import {
   IconRefresh,
   IconShieldCheck,
   IconX,
+  IconPaperclip,
+  IconImage,
 } from "../components/Icons";
 
 export const ConversationDetailPage: React.FC = () => {
@@ -47,6 +49,11 @@ export const ConversationDetailPage: React.FC = () => {
   const [nouveauMessage, setNouveauMessage] = useState<string>("");
   const [envoiEnCours, setEnvoiEnCours] = useState<boolean>(false);
   const [envoiErreur, setEnvoiErreur] = useState<string | null>(null);
+
+  // Pièces jointes (JPG, JPEG, PNG, PDF uniquement - Vidéos formellement interdites)
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [attachedFilePreview, setAttachedFilePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -151,18 +158,99 @@ export const ConversationDetailPage: React.FC = () => {
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEnvoiErreur(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const lowerName = file.name.toLowerCase();
+    const videoExtensions = [".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv", ".wmv", ".m4v", ".3gp"];
+    const isVideo = file.type.startsWith("video/") || videoExtensions.some((ext) => lowerName.endsWith(ext));
+
+    // INTERDICTION FORMELLE DE TOUTE VIDÉO
+    if (isVideo) {
+      setEnvoiErreur("Les fichiers vidéo (MP4, MOV, AVI, MKV...) sont formellement interdits. Seuls les formats JPG, PNG et PDF sont autorisés.");
+      e.target.value = "";
+      setAttachedFile(null);
+      setAttachedFilePreview(null);
+      return;
+    }
+
+    const allowedExtensions = [".jpg", ".jpeg", ".png", ".pdf"];
+    const isAllowedExt = allowedExtensions.some((ext) => lowerName.endsWith(ext));
+    const isAllowedMime = file.type === "image/jpeg" || file.type === "image/png" || file.type === "application/pdf";
+
+    if (!isAllowedExt && !isAllowedMime) {
+      setEnvoiErreur("Format non autorisé. Formats acceptés : JPG, JPEG, PNG et documents PDF.");
+      e.target.value = "";
+      setAttachedFile(null);
+      setAttachedFilePreview(null);
+      return;
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      setEnvoiErreur("La taille du fichier dépasse la limite maximale autorisée de 25 Mo.");
+      e.target.value = "";
+      setAttachedFile(null);
+      setAttachedFilePreview(null);
+      return;
+    }
+
+    setAttachedFile(file);
+
+    // Prévisualisation pour les images
+    const isImage = file.type.startsWith("image/") || [".jpg", ".jpeg", ".png"].some((ext) => lowerName.endsWith(ext));
+    if (isImage) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setAttachedFilePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setAttachedFilePreview(null);
+    }
+  };
+
+  const handleRemoveAttachment = () => {
+    setAttachedFile(null);
+    setAttachedFilePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !nouveauMessage.trim()) return;
+    if (!id) return;
+    if (!nouveauMessage.trim() && !attachedFile) return;
 
     try {
       setEnvoiEnCours(true);
       setEnvoiErreur(null);
 
-      const res = await conversationsApi.sendMessage(id, nouveauMessage.trim());
+      let msgText = nouveauMessage.trim();
+
+      // Traitement de la pièce jointe
+      if (attachedFile) {
+        // Enregistrer le document via l'API documents existante
+        const filePayload = attachedFilePreview || attachedFile.name;
+        const docRes = await conversationsApi.addDocument(id, filePayload).catch(() => null);
+        if (docRes?.success && docRes.data?.document) {
+          setDocuments((prev) => [...prev, docRes.data.document]);
+        }
+
+        if (!msgText) {
+          msgText = `[Fichier joint : ${attachedFile.name}]`;
+        } else {
+          msgText = `${msgText}\n[Fichier joint : ${attachedFile.name}]`;
+        }
+      }
+
+      const res = await conversationsApi.sendMessage(id, msgText);
       if (res.success && res.data?.message) {
         setMessages((prev) => [...prev, res.data.message]);
         setNouveauMessage("");
+        handleRemoveAttachment();
       }
     } catch (err: any) {
       setEnvoiErreur(
@@ -302,6 +390,30 @@ export const ConversationDetailPage: React.FC = () => {
                         const isMe =
                           msg.est_mon_message ?? msg.expediteur_id === user?.id;
 
+                        // Détection de pièce jointe dans le contenu
+                        let textContent = msg.contenu;
+                        let attachmentName: string | null = null;
+                        const attachmentMatch = msg.contenu.match(/\[(?:Fichier joint|Pièce jointe)\s*:\s*([^\]]+)\]/);
+                        if (attachmentMatch) {
+                          attachmentName = attachmentMatch[1].trim();
+                          textContent = msg.contenu.replace(attachmentMatch[0], "").trim();
+                        }
+
+                        // Rechercher dans documents si une version data URL ou fichier existe
+                        const matchingDoc = attachmentName
+                          ? documents.find((d) => d.fichier === attachmentName || (d.fichier.startsWith("data:") && d.fichier.includes(attachmentName!)))
+                          : null;
+
+                        const displayFile = matchingDoc?.fichier || attachmentName;
+                        const isImgAttachment = displayFile && (
+                          displayFile.startsWith("data:image/") ||
+                          [".jpg", ".jpeg", ".png"].some((ext) => displayFile.toLowerCase().endsWith(ext))
+                        );
+                        const isPdfAttachment = displayFile && (
+                          displayFile.startsWith("data:application/pdf") ||
+                          displayFile.toLowerCase().endsWith(".pdf")
+                        );
+
                         return (
                           <div
                             key={msg.id}
@@ -312,7 +424,47 @@ export const ConversationDetailPage: React.FC = () => {
                               <div className="message-sender-name">
                                 {isMe ? "Vous" : interlocuteurNom}
                               </div>
-                              <div className="message-content">{msg.contenu}</div>
+                              {textContent && <div className="message-content">{textContent}</div>}
+
+                              {/* Affichage du fichier envoyé dans la conversation */}
+                              {displayFile && (
+                                <div className="message-attachment-card">
+                                  {isImgAttachment ? (
+                                    <div className="msg-attachment-img-box">
+                                      {displayFile.startsWith("data:image/") ? (
+                                        <img
+                                          src={displayFile}
+                                          alt={attachmentName || "Image jointe"}
+                                          className="msg-attachment-img"
+                                        />
+                                      ) : (
+                                        <div className="msg-attachment-file-pill">
+                                          <IconImage size={18} />
+                                          <span className="msg-attachment-name">
+                                            {attachmentName || displayFile}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : isPdfAttachment ? (
+                                    <div className="msg-attachment-pdf-pill">
+                                      <IconFileText size={18} />
+                                      <span className="msg-attachment-name">
+                                        {attachmentName || displayFile}
+                                      </span>
+                                      <span className="msg-attachment-tag">PDF</span>
+                                    </div>
+                                  ) : (
+                                    <div className="msg-attachment-file-pill">
+                                      <IconFileText size={18} />
+                                      <span className="msg-attachment-name">
+                                        {attachmentName || displayFile}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
                               <div className="message-timestamp">
                                 {formatDateTime(msg.date_envoi)}
                               </div>
@@ -346,8 +498,74 @@ export const ConversationDetailPage: React.FC = () => {
                   </div>
                 )}
 
+                {/* Aperçu de la pièce jointe sélectionnée */}
+                {attachedFile && (
+                  <div className="chat-attachment-bar" id="chat-attachment-preview">
+                    {attachedFilePreview ? (
+                      <div className="chat-attach-preview-item">
+                        <img
+                          src={attachedFilePreview}
+                          alt={attachedFile.name}
+                          className="chat-attach-preview-img"
+                        />
+                        <div className="chat-attach-meta">
+                          <span className="chat-attach-filename">{attachedFile.name}</span>
+                          <span className="chat-attach-filesize">
+                            {(attachedFile.size / 1024).toFixed(0)} Ko
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="chat-attach-preview-item">
+                        <div className="chat-attach-pdf-icon-wrap">
+                          <IconFileText size={22} />
+                        </div>
+                        <div className="chat-attach-meta">
+                          <span className="chat-attach-filename">{attachedFile.name}</span>
+                          <span className="chat-attach-badge">Document PDF</span>
+                          <span className="chat-attach-filesize">
+                            {(attachedFile.size / 1024).toFixed(0)} Ko
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      className="chat-attach-remove-btn"
+                      onClick={handleRemoveAttachment}
+                      title="Retirer le fichier"
+                      aria-label="Retirer la pièce jointe"
+                    >
+                      <IconX size={16} />
+                    </button>
+                  </div>
+                )}
+
                 {/* Formulaire de saisie du message */}
                 <form onSubmit={handleSendMessage} className="chat-input-bar">
+                  {/* Sélecteur de fichier masqué */}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                    accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+                    style={{ display: "none" }}
+                    id="chat-file-input"
+                  />
+
+                  {/* Bouton [ Joindre ] */}
+                  <button
+                    type="button"
+                    className="btn btn-outline chat-attach-btn"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={envoiEnCours || proBloqueSansPremierMessage}
+                    id="btn-attach-file"
+                    title="Joindre une photo (JPG, PNG) ou un PDF"
+                  >
+                    <IconPaperclip size={18} />
+                    <span className="chat-attach-btn-label">Joindre</span>
+                  </button>
+
                   <label htmlFor="input-chat-message" className="sr-only">
                     Rédiger un message
                   </label>
@@ -358,18 +576,23 @@ export const ConversationDetailPage: React.FC = () => {
                     placeholder={
                       proBloqueSansPremierMessage
                         ? "En attente du premier message du voyageur..."
+                        : attachedFile
+                        ? "Ajouter un message accompagnant la pièce jointe (optionnel)..."
                         : "Écrivez votre message ici..."
                     }
                     value={nouveauMessage}
                     onChange={(e) => setNouveauMessage(e.target.value)}
                     disabled={envoiEnCours || proBloqueSansPremierMessage}
-                    required
                   />
 
                   <button
                     type="submit"
                     className="btn btn-primary chat-send-btn"
-                    disabled={envoiEnCours || !nouveauMessage.trim() || proBloqueSansPremierMessage}
+                    disabled={
+                      envoiEnCours ||
+                      (!nouveauMessage.trim() && !attachedFile) ||
+                      proBloqueSansPremierMessage
+                    }
                     id="btn-send-message"
                   >
                     {envoiEnCours ? (

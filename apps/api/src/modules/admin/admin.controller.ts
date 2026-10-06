@@ -97,7 +97,35 @@ export class AdminController {
       next(error);
     }
   }
+
+  async createProfessionalAccount(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const adminUserId = req.user?.id || "ADMIN";
+      const result = await adminService.createProfessionalAccount(req.body, adminUserId);
+
+      res.status(201).json({
+        success: true,
+        message: "Compte agence professionnelle créé avec succès.",
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getFinancialStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const stats = await adminService.getFinancialStats();
+      res.status(200).json({
+        success: true,
+        data: stats,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const adminController = new AdminController();
+
 

@@ -135,7 +135,65 @@ export const adminApi = {
       }
     );
   },
+
+  // Créer directement un compte agence professionnelle avec ses identifiants
+  createProfessionalAccount: async (
+    params: CreateProfessionalAccountParams
+  ): Promise<CreateProfessionalAccountResponse> => {
+    return apiFetch<CreateProfessionalAccountResponse>("/admin/professionals", {
+      method: "POST",
+      body: JSON.stringify(params),
+    });
+  },
+
+  // Récupérer les statistiques financières et de comptes (CA total, agences, voyageurs)
+  getFinancialStats: async (): Promise<{ success: boolean; data: AdminFinancialStats }> => {
+    return apiFetch<{ success: boolean; data: AdminFinancialStats }>("/admin/stats");
+  },
 };
+
+export interface AdminFinancialStats {
+  chiffreAffairesTotal: number;
+  agences: {
+    total: number;
+    chiffreAffaires: number;
+  };
+  voyageurs: {
+    total: number;
+    chiffreAffaires: number;
+  };
+}
+
+export interface CreateProfessionalAccountParams {
+  nom_structure: string;
+  nom: string;
+  prenom?: string;
+  email: string;
+  telephone: string;
+  mot_de_passe: string;
+  description?: string;
+}
+
+export interface CreateProfessionalAccountResponse {
+  success: boolean;
+  message: string;
+  data: {
+    user: {
+      id: string;
+      nom: string;
+      prenom: string;
+      email: string;
+      telephone: string;
+      role: string;
+    };
+    professional: {
+      id: string;
+      nom_structure: string;
+      statut_verification: string;
+    };
+  };
+}
+
 
 export interface AdminPublication {
   id: string;

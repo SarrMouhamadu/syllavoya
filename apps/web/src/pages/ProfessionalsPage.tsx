@@ -4,6 +4,8 @@ import { professionalsApi, type ApiProfessional } from "../api/professionals";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { Alert } from "../components/Alert";
 import { EmptyState } from "../components/EmptyState";
+import { LockedSubscriptionPaywall } from "../components/LockedSubscriptionPaywall";
+import { useSubscriptionAccess } from "../hooks/useSubscriptionAccess";
 import {
   IconSearch,
   IconShieldCheck,
@@ -14,9 +16,10 @@ import {
 } from "../components/Icons";
 
 export const ProfessionalsPage: React.FC = () => {
+  const { loading: accessLoading, hasAccess } = useSubscriptionAccess();
   const [professionals, setProfessionals] = useState<ApiProfessional[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchProfessionals = useCallback(async () => {
@@ -37,8 +40,10 @@ export const ProfessionalsPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchProfessionals();
-  }, [fetchProfessionals]);
+    if (hasAccess) {
+      fetchProfessionals();
+    }
+  }, [hasAccess, fetchProfessionals]);
 
   // Filtrage local en temps réel sur les données réelles
   const filteredProfessionals = useMemo(() => {
@@ -66,40 +71,63 @@ export const ProfessionalsPage: React.FC = () => {
             Consultez les structures et guides enregistrés dont le dossier administratif a été formellement validé par Sylla Voyage.
           </p>
 
-          {/* Barre de recherche */}
-          <div className="search-bar-wrap">
-            <div className="search-input-box">
-              <IconSearch size={18} className="search-icon" />
-              <input
-                type="text"
-                className="search-input"
-                placeholder="Rechercher par nom d'agence, ville ou activité..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                aria-label="Rechercher un professionnel"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  className="search-clear-btn"
-                  onClick={() => setSearchTerm("")}
-                >
-                  Effacer
-                </button>
-              )}
+          {/* Si l'utilisateur n'a pas accès, on ne propose pas la recherche */}
+          {hasAccess && (
+            <div className="search-bar-wrap">
+              <div className="search-input-box">
+                <IconSearch size={18} className="search-icon" />
+                <input
+                  type="text"
+                  className="search-input"
+                  placeholder="Rechercher par nom d'agence, ville ou activité..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  aria-label="Rechercher un professionnel"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    className="search-clear-btn"
+                    onClick={() => setSearchTerm("")}
+                  >
+                    Effacer
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* État de chargement */}
-        {loading && (
+        {/* État de chargement de l'accès */}
+        {accessLoading && (
+          <div className="center-container">
+            <LoadingSpinner message="Vérification de votre statut d'accès..." size="large" />
+          </div>
+        )}
+
+        {/* Verrouillage payant si non abonné */}
+        {!accessLoading && !hasAccess && (
+          <LockedSubscriptionPaywall
+            title="Accès aux agences de voyage réservé aux abonnés"
+            subtitle="Pour consulter l'annuaire complet des agences vérifiées et entrer en contact, un abonnement actif est requis."
+            perks={[
+              "Accès illimité à l'annuaire des agences et guides certifiés",
+              "Consultation des coordonnées et des fiches complètes",
+              "Messagerie directe et demandes de devis sécurisées",
+              "Règlement simple et instantané via Wave ou Orange Money (5 000 FCFA/mois)",
+            ]}
+          />
+        )}
+
+        {/* État de chargement des données si abonné */}
+        {!accessLoading && hasAccess && loading && (
           <div className="center-container">
             <LoadingSpinner message="Recherche des professionnels vérifiés..." size="large" />
           </div>
         )}
 
         {/* État d'erreur */}
-        {!loading && error && (
+        {!accessLoading && hasAccess && !loading && error && (
           <div className="state-container">
             <Alert type="error" message={error} />
             <button
@@ -115,7 +143,7 @@ export const ProfessionalsPage: React.FC = () => {
         )}
 
         {/* État vide si aucune agence en base */}
-        {!loading && !error && professionals.length === 0 && (
+        {!accessLoading && hasAccess && !loading && !error && professionals.length === 0 && (
           <div className="state-container">
             <EmptyState
               icon={<IconBuilding size={40} />}
@@ -126,7 +154,7 @@ export const ProfessionalsPage: React.FC = () => {
         )}
 
         {/* État vide si aucun résultat de recherche */}
-        {!loading && !error && professionals.length > 0 && filteredProfessionals.length === 0 && (
+        {!accessLoading && hasAccess && !loading && !error && professionals.length > 0 && filteredProfessionals.length === 0 && (
           <div className="state-container">
             <EmptyState
               icon={<IconSearch size={40} />}
@@ -139,7 +167,7 @@ export const ProfessionalsPage: React.FC = () => {
         )}
 
         {/* Grille de cartes réelles entièrement cliquables */}
-        {!loading && !error && filteredProfessionals.length > 0 && (
+        {!accessLoading && hasAccess && !loading && !error && filteredProfessionals.length > 0 && (
           <div className="pro-grid">
             {filteredProfessionals.map((pro) => (
               <Link
@@ -163,20 +191,18 @@ export const ProfessionalsPage: React.FC = () => {
                   </div>
 
                   <div className="pro-card-body">
-                    {pro.description ? (
+                    {pro.description && !pro.description.toLowerCase().includes("12345") && !pro.description.toLowerCase().includes("licence") ? (
                       <p className="pro-description">{pro.description}</p>
-                    ) : (
-                      <p className="pro-description pro-desc-empty">
-                        Structure certifiée par l'administration Sylla Voyage.
-                      </p>
-                    )}
+                    ) : null}
 
-                    {pro.informations_professionnelles && (
+                    {pro.informations_professionnelles &&
+                    !pro.informations_professionnelles.toLowerCase().includes("12345") &&
+                    !pro.informations_professionnelles.toLowerCase().includes("licence") ? (
                       <div className="pro-info-tag">
                         <IconMapPin size={14} />
                         <span className="info-text">{pro.informations_professionnelles}</span>
                       </div>
-                    )}
+                    ) : null}
                   </div>
 
                   <div className="pro-card-footer">

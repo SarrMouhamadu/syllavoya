@@ -7,6 +7,8 @@ export interface AuthUser {
   email: string;
   role: string;
   statut: string;
+  nom?: string;
+  prenom?: string;
 }
 
 declare global {
@@ -57,10 +59,46 @@ export async function authenticate(
       email: user.email,
       role: user.role,
       statut: user.statut,
+      nom: user.nom,
+      prenom: user.prenom,
     };
 
     next();
   } catch (error) {
     next(error);
+  }
+}
+
+export async function optionalAuthenticate(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7).trim();
+      if (token) {
+        try {
+          const payload = authService.verifyToken(token);
+          const user = await authService.getUserById(payload.userId);
+          if (user && user.statut !== "SUSPENDU") {
+            req.user = {
+              id: user.id,
+              email: user.email,
+              role: user.role,
+              statut: user.statut,
+              nom: user.nom,
+              prenom: user.prenom,
+            };
+          }
+        } catch {
+          // Ignore invalid token in optional authentication
+        }
+      }
+    }
+    next();
+  } catch {
+    next();
   }
 }

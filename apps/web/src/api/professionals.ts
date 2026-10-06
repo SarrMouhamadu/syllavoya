@@ -8,6 +8,7 @@ export interface ApiProfessional {
   informations_professionnelles: string | null;
   statut_verification: string;
   created_at: string;
+  telephone?: string | null;
 }
 
 export interface ProfessionalsListResponse {

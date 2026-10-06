@@ -94,20 +94,22 @@ export const ConversationsPage: React.FC = () => {
   return (
     <div className="messages-page">
       <div className="container messages-container">
-        {/* En-tête */}
+        {/* En-tête sobre et clair */}
         <div className="page-header">
           <div className="page-header-row">
             <div>
               <span className="page-header-badge">Messagerie sécurisée</span>
               <h1 className="page-title">Mes Conversations</h1>
               <p className="page-subtitle">
-                Échangez en direct avec vos interlocuteurs en toute sécurité sur la plateforme.
+                {user?.role === "PROFESSIONNEL"
+                  ? "Consultez vos messages reçus et répondez directement aux demandes des voyageurs."
+                  : "Échangez en direct avec vos interlocuteurs professionnels en toute sécurité."}
               </p>
             </div>
             {user?.role === "VOYAGEUR" && (
               <div className="page-header-actions">
-                <Link to="/professionals" className="btn btn-outline btn-sm">
-                  + Nouveau contact
+                <Link to="/professionals" className="btn btn-primary btn-sm">
+                  Trouver un professionnel
                 </Link>
               </div>
             )}

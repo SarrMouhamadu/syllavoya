@@ -2,29 +2,40 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
 import { professionalsApi, type ApiProfessional } from "../api/professionals";
 import { conversationsApi } from "../api/conversations";
-import { subscriptionsApi } from "../api/subscriptions";
 import { useAuth } from "../context/AuthContext";
+import { useSubscriptionAccess } from "../hooks/useSubscriptionAccess";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { Alert } from "../components/Alert";
+import { LockedSubscriptionPaywall } from "../components/LockedSubscriptionPaywall";
 import {
   IconBuilding,
   IconShieldCheck,
-  IconMapPin,
+  IconPhone,
   IconCheck,
   IconArrowLeft,
   IconSend,
-  IconLock,
-  IconCreditCard,
 } from "../components/Icons";
+
+const formatPhoneNumber = (phone: string | null | undefined): string => {
+  if (!phone) return "";
+  const cleaned = phone.replace(/\s+/g, "");
+  if (cleaned.startsWith("+1") && cleaned.length === 12) {
+    return `+1 ${cleaned.slice(2, 5)} ${cleaned.slice(5, 8)} ${cleaned.slice(8, 10)} ${cleaned.slice(10)}`;
+  }
+  if (cleaned.startsWith("+221") && cleaned.length === 13) {
+    return `+221 ${cleaned.slice(4, 6)} ${cleaned.slice(6, 9)} ${cleaned.slice(9, 11)} ${cleaned.slice(11)}`;
+  }
+  return phone;
+};
 
 export const ProfessionalDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const { user, isAuthenticated } = useAuth();
+  const { loading: accessLoading, hasAccess } = useSubscriptionAccess();
 
   const [pro, setPro] = useState<ApiProfessional | null>(null);
-  const [hasSubscription, setHasSubscription] = useState<boolean | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // État du formulaire de contact
@@ -44,22 +55,18 @@ export const ProfessionalDetailPage: React.FC = () => {
       } else {
         setError("Professionnel introuvable.");
       }
-
-      // Vérifier le statut de l'abonnement si l'utilisateur est un voyageur connecté
-      if (isAuthenticated && user?.role === "VOYAGEUR") {
-        const subRes = await subscriptionsApi.getMySubscription().catch(() => null);
-        setHasSubscription(!!(subRes?.success && subRes.data?.subscription && subRes.data.subscription.statut === "ACTIF"));
-      }
     } catch (err: any) {
       setError(err?.message || "Impossible de charger les informations de ce professionnel.");
     } finally {
       setLoading(false);
     }
-  }, [id, isAuthenticated, user]);
+  }, [id]);
 
   useEffect(() => {
-    fetchProfessional();
-  }, [fetchProfessional]);
+    if (hasAccess) {
+      fetchProfessional();
+    }
+  }, [hasAccess, fetchProfessional]);
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,15 +109,36 @@ export const ProfessionalDetailPage: React.FC = () => {
           </Link>
         </div>
 
-        {/* État de chargement */}
-        {loading && (
+        {/* État de chargement de l'accès */}
+        {accessLoading && (
+          <div className="center-container">
+            <LoadingSpinner message="Vérification de votre abonnement..." size="large" />
+          </div>
+        )}
+
+        {/* Verrouillage payant si non abonné */}
+        {!accessLoading && !hasAccess && (
+          <LockedSubscriptionPaywall
+            title="Fiche de l'agence réservée aux abonnés"
+            subtitle="Pour consulter les informations détaillées, les coordonnées directes et contacter cette agence, un abonnement actif est requis."
+            perks={[
+              "Accès complet à la fiche de l'agence et aux prestations proposées",
+              "Numéro de téléphone direct et coordonnées vérifiées",
+              "Prise de contact directe et messagerie privée",
+              "Règlement simple et instantané via Wave ou Orange Money (5 000 FCFA/mois)",
+            ]}
+          />
+        )}
+
+        {/* État de chargement des données si abonné */}
+        {!accessLoading && hasAccess && loading && (
           <div className="center-container">
             <LoadingSpinner message="Chargement de la fiche professionnelle..." size="large" />
           </div>
         )}
 
-        {/* État d'erreur */}
-        {!loading && error && (
+        {/* État d'erreur si abonné */}
+        {!accessLoading && hasAccess && !loading && error && (
           <div className="state-container">
             <Alert type="error" message={error} />
             <Link to="/professionals" className="btn btn-outline" style={{ marginTop: "14px" }}>
@@ -119,8 +147,8 @@ export const ProfessionalDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* Fiche détaillée */}
-        {!loading && !error && pro && (
+        {/* Fiche détaillée si abonné */}
+        {!accessLoading && hasAccess && !loading && !error && pro && (
           <div className="pro-detail-layout">
             {/* Colonne informations de la structure */}
             <div className="pro-detail-card">
@@ -149,12 +177,30 @@ export const ProfessionalDetailPage: React.FC = () => {
                   )}
                 </section>
 
-                {pro.informations_professionnelles && (
+                {pro.informations_professionnelles &&
+                !pro.informations_professionnelles.toLowerCase().includes("12345") &&
+                !pro.informations_professionnelles.toLowerCase().includes("licence") && (
                   <section className="detail-section">
-                    <h2 className="detail-section-title">Localisation & Informations</h2>
+                    <h2 className="detail-section-title">Activité & Informations</h2>
                     <div className="detail-section-info-box">
-                      <IconMapPin size={18} />
+                      <IconBuilding size={18} />
                       <p className="detail-section-content">{pro.informations_professionnelles}</p>
+                    </div>
+                  </section>
+                )}
+
+                {pro.telephone && (
+                  <section className="detail-section">
+                    <h2 className="detail-section-title">Contact téléphonique</h2>
+                    <div className="detail-section-info-box">
+                      <IconPhone size={18} />
+                      <a
+                        href={`tel:${pro.telephone}`}
+                        className="detail-section-content"
+                        style={{ textDecoration: "none", color: "inherit" }}
+                      >
+                        {formatPhoneNumber(pro.telephone)}
+                      </a>
                     </div>
                   </section>
                 )}
@@ -164,7 +210,7 @@ export const ProfessionalDetailPage: React.FC = () => {
                   <ul className="guarantee-list">
                     <li>
                       <IconCheck size={16} />
-                      <span>Dossier administratif audité (identité, RCCM, NINEA)</span>
+                      <span>Pièce d'identité et justificatifs audités par l'administration</span>
                     </li>
                     <li>
                       <IconCheck size={16} />
@@ -220,35 +266,8 @@ export const ProfessionalDetailPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Cas 3 : Connecté en tant que VOYAGEUR sans abonnement actif */}
-              {isAuthenticated && user?.role === "VOYAGEUR" && hasSubscription === false && (
-                <div className="contact-locked-box">
-                  <div className="locked-icon-wrap">
-                    <IconLock size={26} />
-                  </div>
-                  <h3 className="locked-title">Messagerie réservée aux abonnés</h3>
-                  <p className="locked-desc">
-                    L'envoi de messages directs aux structures partenaires nécessite un abonnement Voyageur actif.
-                  </p>
-                  <div className="locked-perks">
-                    <div className="locked-perk-item">
-                      <IconCheck size={14} />
-                      <span>Échanges illimités avec tous les professionnels</span>
-                    </div>
-                    <div className="locked-perk-item">
-                      <IconCheck size={14} />
-                      <span>Accès aux guides complets et conseils exclusifs</span>
-                    </div>
-                  </div>
-                  <Link to="/subscriptions" className="btn btn-primary btn-block btn-lg">
-                    <IconCreditCard size={16} />
-                    <span>Activer mon abonnement (5 000 FCFA/mois)</span>
-                  </Link>
-                </div>
-              )}
-
-              {/* Cas 4 : Connecté avec abonnement actif (ou ADMIN) */}
-              {isAuthenticated && (user?.role === "ADMIN" || (user?.role === "VOYAGEUR" && hasSubscription === true)) && (
+              {/* Cas 3 : Connecté avec abonnement actif (ou ADMIN) */}
+              {isAuthenticated && (user?.role === "ADMIN" || user?.role === "VOYAGEUR") && (
                 <div className="contact-form-wrapper">
                   {contactSuccess && (
                     <Alert type="success" message={contactSuccess} />

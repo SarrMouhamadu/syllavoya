@@ -320,13 +320,6 @@ app	5cb0fc262450ed95c9e9487dcfcdc9434112a3f4659b7c26f1b3b2294867a099	3916f444a8a
 --
 
 COPY public.abonnement (date_debut, date_fin, formule_id, id, statut, utilisateur_id) FROM stdin;
-2026-10-05 01:46:44.472+00	2027-10-05 01:46:44.472+00	formule-voyageur-annuel	c1c7432f-f659-4cc7-985d-e16dfe5e204a	ECHOUE	c5f684ce-8ce3-4e49-914a-d0060c8ece9e
-2026-10-05 01:47:55.299+00	2026-11-04 01:47:55.299+00	formule-voyageur-mensuel	2278136a-633b-4052-aa9d-34ce70959172	ACTIF	c5f684ce-8ce3-4e49-914a-d0060c8ece9e
-2026-10-05 01:48:37.387+00	2026-11-04 01:48:37.387+00	formule-voyageur-mensuel	8a26470f-e7e0-4af4-ab76-19d346b97653	ECHOUE	c5f684ce-8ce3-4e49-914a-d0060c8ece9e
-2026-10-05 01:48:37.411+00	2026-11-04 01:48:37.411+00	formule-voyageur-mensuel	8c7c372f-53f1-44cb-af18-d2ef4b1844d2	ACTIF	c5f684ce-8ce3-4e49-914a-d0060c8ece9e
-2026-10-05 01:54:20.015+00	2026-11-04 01:54:20.015+00	formule-voyageur-mensuel	747a136c-a257-4652-9e49-882ba14130d0	ACTIF	c5f684ce-8ce3-4e49-914a-d0060c8ece9e
-2026-10-05 13:54:14.017+00	2026-11-04 13:54:14.017+00	formule-voyageur-mensuel	43ef69f5-3e02-45b5-b7fa-217c1a160ca7	EN_ATTENTE	d12d4e67-f3c0-4983-9942-2f791afb607e
-2026-10-05 13:54:44.513+00	2027-10-05 13:54:44.513+00	formule-professionnel-annuel	bd30d93f-4757-428c-92d9-34e645d3d716	ACTIF	ad1d9ee0-b5fb-44b5-abaf-d2496cbb7b83
 \.
 
 
@@ -335,8 +328,6 @@ COPY public.abonnement (date_debut, date_fin, formule_id, id, statut, utilisateu
 --
 
 COPY public.audit_log (action, date, id, informations_complementaires, utilisateur_id) FROM stdin;
-TRAITEMENT_SIGNALEMENT	2026-10-05 02:13:06.87+00	ed8c9747-ac49-4a98-8eff-54ad852cc885	{"signalement_id":"e101bd4d-72e5-46d2-8cf2-fca6a36bbcd1","decision":"TRAITE","type_cible":"PROFESSIONNEL","cible_id":"d29e04ea-72ee-4e66-bd9b-e2fb3467f6b8","motif":"Non-respect des engagements","commentaire":"Signalement examiné et vérifié. Avertissement formel adressé au professionnel."}	00e50e24-16bd-4cf7-b144-a1d6297e1874
-TRAITEMENT_SIGNALEMENT	2026-10-05 14:15:50.752+00	575e1871-6253-4ab3-af75-d59915b1fe08	{"signalement_id":"1b9bbc4e-24b2-472e-84c9-32eff036a737","decision":"RESOLU","type_cible":"PUBLICATION","cible_id":"publication-fake-id","motif":"Contenu inapproprié","commentaire":"Publication retirée après vérification administrative"}	00e50e24-16bd-4cf7-b144-a1d6297e1874
 \.
 
 
@@ -345,9 +336,6 @@ TRAITEMENT_SIGNALEMENT	2026-10-05 14:15:50.752+00	575e1871-6253-4ab3-af75-d59915
 --
 
 COPY public.conversation (date_creation, id, professionnel_id, statut, voyageur_id) FROM stdin;
-2026-10-05 02:03:47.135+00	a6608871-f74c-4397-93f7-34fa2ce4c835	d29e04ea-72ee-4e66-bd9b-e2fb3467f6b8	ACTIF	c5f684ce-8ce3-4e49-914a-d0060c8ece9e
-2026-10-05 13:45:22.561+00	c38a7880-4e95-4681-8229-dd8533d2877a	d29e04ea-72ee-4e66-bd9b-e2fb3467f6b8	ACTIF	82e918a2-a066-42b3-9083-bf455e622879
-2026-10-05 14:01:49.694+00	f6eeca10-eceb-4179-9627-b981a8a8d505	d29e04ea-72ee-4e66-bd9b-e2fb3467f6b8	ACTIF	d12d4e67-f3c0-4983-9942-2f791afb607e
 \.
 
 
@@ -356,9 +344,6 @@ COPY public.conversation (date_creation, id, professionnel_id, statut, voyageur_
 --
 
 COPY public.document_echange (conversation_id, date_envoi, expediteur_id, fichier, id) FROM stdin;
-a6608871-f74c-4397-93f7-34fa2ce4c835	2026-10-05 02:08:07.519+00	c5f684ce-8ce3-4e49-914a-d0060c8ece9e	passeport_amadou_scan_securise.pdf	aad11bf3-67e8-482b-a9ec-2a057d7c892f
-a6608871-f74c-4397-93f7-34fa2ce4c835	2026-10-05 02:08:12.131+00	98c64dcf-adce-4cc4-a8b3-6d29d89d0dbb	contrat_circuit_saloum_signe.pdf	e0d7afc5-5732-4dff-a070-c2d9061a5d74
-f6eeca10-eceb-4179-9627-b981a8a8d505	2026-10-05 14:05:16.625+00	d12d4e67-f3c0-4983-9942-2f791afb607e	Devis_Circuit_Casamance_2026.pdf	4b41d8d7-d94d-440e-ab70-9a5b4e1543d9
 \.
 
 
@@ -367,7 +352,6 @@ f6eeca10-eceb-4179-9627-b981a8a8d505	2026-10-05 14:05:16.625+00	d12d4e67-f3c0-49
 --
 
 COPY public.document_verification (created_at, fichier, id, professionnel_id, statut, type_document) FROM stdin;
-2026-10-05 01:32:52.188+00	rccm_dakar_voyage.pdf	9de09cd3-1f79-4b85-97d3-b62228b5bf5c	d29e04ea-72ee-4e66-bd9b-e2fb3467f6b8	EN_ATTENTE	RCCM
 \.
 
 
@@ -388,14 +372,6 @@ ANNUEL	formule-professionnel-annuel	Abonnement Professionnel Annuel	200000	ACTIF
 --
 
 COPY public.message (contenu, conversation_id, date_envoi, expediteur_id, id, statut) FROM stdin;
-Bonjour, je souhaite des informations sur le circuit Saloum.	a6608871-f74c-4397-93f7-34fa2ce4c835	2026-10-05 02:03:47.135+00	c5f684ce-8ce3-4e49-914a-d0060c8ece9e	2c850552-c1ac-4c90-8f44-91f69ca05936	ENVOYE
-Bonjour Amadou, le circuit Saloum comprend 3 jours et 2 nuits avec pirogue et hébergement.	a6608871-f74c-4397-93f7-34fa2ce4c835	2026-10-05 02:04:33.316+00	98c64dcf-adce-4cc4-a8b3-6d29d89d0dbb	16981971-d253-491c-90e9-704aed98322c	ENVOYE
-Super, quel est le tarif total disponible ?	a6608871-f74c-4397-93f7-34fa2ce4c835	2026-10-05 02:04:41.127+00	c5f684ce-8ce3-4e49-914a-d0060c8ece9e	3c61c696-2211-41a8-b532-111691082e8e	ENVOYE
-Le tarif complet est de 75 000 FCFA par personne.	a6608871-f74c-4397-93f7-34fa2ce4c835	2026-10-05 02:05:01.932+00	98c64dcf-adce-4cc4-a8b3-6d29d89d0dbb	29831ea2-1116-4c9c-b57b-25c7101a3b61	ENVOYE
-Bonjour Dakar Voyage Express, pouvez-vous me donner vos tarifs pour Saly ?	c38a7880-4e95-4681-8229-dd8533d2877a	2026-10-05 13:45:22.561+00	82e918a2-a066-42b3-9083-bf455e622879	01b18a3d-ca1a-4cae-a4fa-83e9c5f66a1c	ENVOYE
-Bonjour Dakar Voyage Express, je prépare un voyage pour la Casamance en décembre.	f6eeca10-eceb-4179-9627-b981a8a8d505	2026-10-05 14:01:49.694+00	d12d4e67-f3c0-4983-9942-2f791afb607e	fb30db2e-d4e1-4e3a-9690-59e6cf2632b9	ENVOYE
-Bonjour Aminata ! Absolument, nous organisons des circuits guidés de 5 à 7 jours en Casamance.	f6eeca10-eceb-4179-9627-b981a8a8d505	2026-10-05 14:02:32.045+00	98c64dcf-adce-4cc4-a8b3-6d29d89d0dbb	18386c60-9120-4879-9193-c037c5388645	ENVOYE
-Parfait ! Pouvez-vous me préciser les étapes prévues ?	f6eeca10-eceb-4179-9627-b981a8a8d505	2026-10-05 14:02:42.553+00	d12d4e67-f3c0-4983-9942-2f791afb607e	a9ef6947-57b4-46ff-81ea-5dde90ab72d1	ENVOYE
 \.
 
 
@@ -404,17 +380,6 @@ Parfait ! Pouvez-vous me préciser les étapes prévues ?	f6eeca10-eceb-4179-962
 --
 
 COPY public.paiement (abonnement_id, date_confirmation, date_creation, id, montant, moyen_paiement, reference, statut) FROM stdin;
-c1c7432f-f659-4cc7-985d-e16dfe5e204a	\N	2026-10-05 01:46:44.472+00	56070632-d9e6-4d0f-9e3c-8646e5a0628a	51000	NABOOPAY	ord_1791164804472_8cd3ba3c	ECHOUE
-2278136a-633b-4052-aa9d-34ce70959172	2026-10-05 01:46:54.506+00	2026-10-05 01:46:34.912+00	4213b1b2-cd70-4e41-8f28-2fbbb24e3e6e	5100	NABOOPAY	ord_1791164794912_c3c968f9	CONFIRME
-2278136a-633b-4052-aa9d-34ce70959172	2026-10-05 01:47:32.809+00	2026-10-05 01:47:29.959+00	5c20d836-53ce-4c42-b9b1-cf34238b0ac9	5100	NABOOPAY	ord_1791164849959_2d5c8f6d	CONFIRME
-2278136a-633b-4052-aa9d-34ce70959172	\N	2026-10-05 01:47:36.577+00	5a129c46-9b12-411e-a94b-ae5f7728f368	5100	NABOOPAY	ord_1791164856577_48d97ef7	EN_ATTENTE
-2278136a-633b-4052-aa9d-34ce70959172	2026-10-05 01:47:55.299+00	2026-10-05 01:47:52.063+00	8775f334-c955-4964-942e-89efe5267e3a	5100	NABOOPAY	ord_1791164872063_d11f2eb7	CONFIRME
-8a26470f-e7e0-4af4-ab76-19d346b97653	\N	2026-10-05 01:48:37.39+00	c92a8cba-f77b-4e16-8845-5eba75f52bea	5100	NABOOPAY	ord_1791164917390_a3fef040	ECHOUE
-8c7c372f-53f1-44cb-af18-d2ef4b1844d2	2026-10-05 01:48:37.411+00	2026-10-05 01:48:37.408+00	e8070f18-5249-49bc-8c8a-11eef4562722	5100	NABOOPAY	ord_1791164917408_dc1c45d8	CONFIRME
-8c7c372f-53f1-44cb-af18-d2ef4b1844d2	\N	2026-10-05 01:48:37.428+00	f071e6d6-4f86-437d-bda6-6466b78ada43	5100	NABOOPAY	ord_1791164917428_d99329b8	EN_ATTENTE
-747a136c-a257-4652-9e49-882ba14130d0	2026-10-05 01:54:20.015+00	2026-10-05 01:54:20.008+00	b578a5ce-eb97-40f0-b1f4-299a2b37d69b	5000	NABOOPAY_WAVE	ord_1791165260008_25f080ae	CONFIRME
-43ef69f5-3e02-45b5-b7fa-217c1a160ca7	\N	2026-10-05 13:54:14.02+00	13d7cbf3-ffcb-4293-946e-797efcd7e1e9	5000	NABOOPAY	ord_1791208454020_9e0e4beb	EN_ATTENTE
-bd30d93f-4757-428c-92d9-34e645d3d716	2026-10-05 13:54:44.513+00	2026-10-05 13:54:35.066+00	685fed8d-dbf1-4b61-9c9c-425bc0260115	200000	BICTORYS	bic_1791208475066_c3d423ea	CONFIRME
 \.
 
 
@@ -423,7 +388,6 @@ bd30d93f-4757-428c-92d9-34e645d3d716	2026-10-05 13:54:44.513+00	2026-10-05 13:54
 --
 
 COPY public.professionnel (created_at, description, id, informations_professionnelles, nom_structure, statut_verification, utilisateur_id) FROM stdin;
-2026-10-05 01:32:46.794+00	Agence de voyage agréée à Dakar	d29e04ea-72ee-4e66-bd9b-e2fb3467f6b8	Licence tourisme n°12345	Dakar Voyage Express	VERIFIE	98c64dcf-adce-4cc4-a8b3-6d29d89d0dbb
 \.
 
 
@@ -432,8 +396,6 @@ COPY public.professionnel (created_at, description, id, informations_professionn
 --
 
 COPY public.publication (contenu, date_creation, date_publication, id, professionnel_id, statut, titre) FROM stdin;
-Programme complet : Ziguinchor, Cap Skirring, Carabane avec guide local certifié.	2026-10-05 01:36:10.365+00	2026-10-05 01:36:34.075+00	40e2656e-e255-430b-bb1c-03c22378b9be	d29e04ea-72ee-4e66-bd9b-e2fb3467f6b8	APPROUVEE	Circuit Découverte Casamance 5 Jours
-Contenu publicitaire non vérifié sans détails précis.	2026-10-05 01:36:17.648+00	\N	b6c67f4b-9ed6-4ef9-96aa-5d8a1a6d3816	d29e04ea-72ee-4e66-bd9b-e2fb3467f6b8	REFUSEE	Offre Non Conforme
 \.
 
 
@@ -442,8 +404,6 @@ Contenu publicitaire non vérifié sans détails précis.	2026-10-05 01:36:17.64
 --
 
 COPY public.signalement (cible_id, date_creation, description, id, motif, statut, type_cible, utilisateur_id) FROM stdin;
-d29e04ea-72ee-4e66-bd9b-e2fb3467f6b8	2026-10-05 02:12:44.038+00	Le professionnel n a pas fourni l itinéraire convenu dans le devis.	e101bd4d-72e5-46d2-8cf2-fca6a36bbcd1	Non-respect des engagements	TRAITE	PROFESSIONNEL	c5f684ce-8ce3-4e49-914a-d0060c8ece9e
-publication-fake-id	2026-10-05 02:12:52.283+00	Cette publication contient de fausses informations sur les visas.	1b9bbc4e-24b2-472e-84c9-32eff036a737	Contenu inapproprié	RESOLU	PUBLICATION	f7b935cc-8487-432c-a870-57a6ed80e393
 \.
 
 
@@ -452,16 +412,7 @@ publication-fake-id	2026-10-05 02:12:52.283+00	Cette publication contient de fau
 --
 
 COPY public.utilisateur (created_at, email, id, mot_de_passe, nom, prenom, role, statut, telephone) FROM stdin;
-2026-10-05 01:24:49.964+00	mouhamadou.voyageur@example.com	e4a00b37-a828-47fe-9f74-ec2b06b5a3ac	$2b$10$aUOin.u2pGxTnazsSXYL0ugbS0ujgDZH3EBQ8XL.P5qYaENQOVnBK	Sarr Modifie	Mouhamadou	VOYAGEUR	ACTIF	+221779998877
-2026-10-05 01:46:27.018+00	amadou.voyageur@test.com	c5f684ce-8ce3-4e49-914a-d0060c8ece9e	$2b$10$nIAVaxWy1tpui.AlY4UqN.LAkEDi0/hQbqnLlWmq7ZKa5O9Jaw1Dm	Touré	Amadou	VOYAGEUR	ACTIF	\N
-2026-10-05 01:32:24.551+00	candidat.agence@example.com	98c64dcf-adce-4cc4-a8b3-6d29d89d0dbb	$2b$10$VDVTsXOktllBbIBV9nPT4eKaEe9Ki6ND1qxZizxrDzu5w3cWcG8dC	Diallo	Amadou	PROFESSIONNEL	ACTIF	+221778889900
-2026-10-05 02:03:14.373+00	fatou.voyageur@test.com	f7b935cc-8487-432c-a870-57a6ed80e393	$2b$10$csFb0BKhyVBNC6kBTYgcKO8EtBWaqKC.pbjUuhL3hIVgQi1/AwBGC	Ba	Fatou	VOYAGEUR	ACTIF	\N
 2026-10-05 01:32:20.64+00	admin@syllavoyage.com	00e50e24-16bd-4cf7-b144-a1d6297e1874	$2b$10$SFKTHWxJYauZW13eB4LUxehqc4VE8O8iYOF.Ql.wSWN5hGL9tCVei	Super	Admin	ADMIN	ACTIF	+221770000001
-2026-10-05 13:38:45.772+00	test.front.1791207525681@syllavoyage.com	77bdc29e-c6cc-4f5f-bace-5d82977ed77a	$2b$10$1.uxD2i.z9LEPbTHu.sKmuM72T5s.x3W4eWzyQIqERTT7pldTugeG	Diop	Moussa	VOYAGEUR	ACTIF	+221771234567
-2026-10-05 13:45:22.553+00	voyageur.pro.test.1791207922471@syllavoyage.com	82e918a2-a066-42b3-9083-bf455e622879	$2b$10$iVr4PZyuhY00q/hvzVf6b.4BpSOIdNzmCEsw5NSQCncS0MhFVMl6S	Sow	Fatou	VOYAGEUR	ACTIF	\N
-2026-10-05 13:45:22.62+00	pro.contact.test.1791207922566@syllavoyage.com	ebfcb88b-387d-4d4c-bc8e-435b892bdff2	$2b$10$H5yy48d4lqrtNywfgf0BD.nTeYdXBdLIVKDjtwDTEaHVrA/RKHjoG	Agent	Oumar	PROFESSIONNEL	ACTIF	\N
-2026-10-05 13:54:04.315+00	aminata.testsub@syllavoyage.com	d12d4e67-f3c0-4983-9942-2f791afb607e	$2b$10$xQzZTEKtg5jPwFdyR7h.b.1cnizCquLNYwicNsL.wVaao0BPT9DuS	Diallo	Aminata	VOYAGEUR	ACTIF	\N
-2026-10-05 13:54:31.403+00	babacar.testsub@syllavoyage.com	ad1d9ee0-b5fb-44b5-abaf-d2496cbb7b83	$2b$10$IlK3K7z5cYIlHOGmOIjNC.qEKFBnfEKsn.jYpgM5SltBP8BeXEdIS	Ndiaye	Babacar	PROFESSIONNEL	ACTIF	\N
 \.
 
 
@@ -470,7 +421,6 @@ COPY public.utilisateur (created_at, email, id, mot_de_passe, nom, prenom, role,
 --
 
 COPY public.verification (commentaire, date_debut, date_decision, id, professionnel_id, statut) FROM stdin;
-Dossier vérifié et accepté	2026-10-05 01:32:46.794+00	2026-10-05 01:33:32.161+00	ab47e70a-9c4c-47b2-b2e1-891bd73d928f	d29e04ea-72ee-4e66-bd9b-e2fb3467f6b8	ACCEPTEE
 \.
 
 

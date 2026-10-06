@@ -7,7 +7,6 @@ import {
   IconShieldCheck,
   IconMessage,
   IconArrowRight,
-  IconCheck,
 } from "../components/Icons";
 
 export const HomePage: React.FC = () => {
@@ -21,8 +20,20 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="home-page">
-      {/* Hero Section */}
+      {/* Hero Section avec vidéo d'arrière-plan */}
       <section className="hero-section">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="hero-video-bg"
+          aria-hidden="true"
+        >
+          <source src="/avion.mp4" type="video/mp4" />
+        </video>
+        <div className="hero-video-overlay" />
+
         <div className="container hero-container">
           <div className="hero-badge-tag">
             <IconShieldCheck size={16} />
@@ -79,7 +90,7 @@ export const HomePage: React.FC = () => {
               </div>
               <h3 className="step-title">Vérifier</h3>
               <p className="step-desc">
-                Chaque professionnel dispose d'un dossier administratif contrôlé par notre équipe (identité, RCCM, NINEA).
+                Chaque professionnel est vérifié à partir des documents disponibles dans son dossier.
               </p>
             </div>
 
@@ -93,41 +104,6 @@ export const HomePage: React.FC = () => {
               <p className="step-desc">
                 Initiez le premier contact directement sur la plateforme pour poser vos questions et préparer votre voyage.
               </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Section Engagements de confiance */}
-      <section className="commitments-section">
-        <div className="container">
-          <div className="commitments-card">
-            <div className="commitments-content">
-              <h2 className="commitments-title">Les garanties de la plateforme</h2>
-              <p className="commitments-lead">
-                Une relation saine et transparente entre voyageurs et prestataires.
-              </p>
-
-              <ul className="commitments-list">
-                <li>
-                  <IconCheck size={18} className="list-check-icon" />
-                  <div>
-                    <strong>Contrôle des pièces d'identité et registres :</strong> Seules les structures formellement identifiées peuvent être contactées.
-                  </div>
-                </li>
-                <li>
-                  <IconCheck size={18} className="list-check-icon" />
-                  <div>
-                    <strong>Priorité au voyageur :</strong> Aucun démarchage non sollicité. Vous gardez la main sur les échanges.
-                  </div>
-                </li>
-                <li>
-                  <IconCheck size={18} className="list-check-icon" />
-                  <div>
-                    <strong>Informations fiables :</strong> Aucune fausse note ou faux avis. Seules les données réelles et vérifiées sont présentées.
-                  </div>
-                </li>
-              </ul>
             </div>
           </div>
         </div>

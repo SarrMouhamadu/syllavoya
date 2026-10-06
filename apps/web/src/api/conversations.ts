@@ -140,4 +140,12 @@ export const conversationsApi = {
   getDocument: async (conversationId: string, documentId: string): Promise<{ success: boolean; data: { document: DocumentItem } }> => {
     return apiFetch<{ success: boolean; data: { document: DocumentItem } }>(`/conversations/${conversationId}/documents/${documentId}`);
   },
+
+  // Ajouter un document dans une conversation
+  addDocument: async (conversationId: string, fichier: string): Promise<{ success: boolean; data: { document: DocumentItem } }> => {
+    return apiFetch<{ success: boolean; data: { document: DocumentItem } }>(`/conversations/${conversationId}/documents`, {
+      method: "POST",
+      body: JSON.stringify({ fichier }),
+    });
+  },
 };

@@ -1,0 +1,26 @@
+[
+  {
+    "publicationId": "test-pub-1791265760650",
+    "likedUserIds": [
+      "user-traveler-2"
+    ],
+    "comments": [
+      {
+        "id": "b75ea2e6-b530-4099-a417-0f65528efde8",
+        "userId": "user-pro-1",
+        "userName": "Dana Travel Services",
+        "userRole": "PROFESSIONNEL",
+        "content": "Magnifique circuit, nous le recommandons vivement !",
+        "createdAt": "2026-10-06T05:49:20.662Z"
+      },
+      {
+        "id": "fcd72351-47a6-4e2a-a83a-b473440595d8",
+        "userId": "user-traveler-2",
+        "userName": "Moussa Diallo",
+        "userRole": "VOYAGEUR",
+        "content": "Quel est le point de départ exact à Dakar ?",
+        "createdAt": "2026-10-06T05:49:20.674Z"
+      }
+    ]
+  }
+]

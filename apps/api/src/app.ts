@@ -23,16 +23,17 @@ for (const origin of configuredOrigins) {
   if (!allowedOrigins.includes(origin)) {
     allowedOrigins.push(origin);
   }
-  // Accepter automatiquement la variante www / apex si annonyme.pro est configuré
+  // Accepter automatiquement la variante www / apex si syllavoyage.com ou annonyme.pro est configuré
   try {
     const parsed = new URL(origin);
-    if (parsed.hostname === "annonyme.pro") {
+    if (parsed.hostname === "syllavoyage.com" || parsed.hostname === "annonyme.pro") {
       const wwwOrigin = `${parsed.protocol}//www.${parsed.hostname}${parsed.port ? `:${parsed.port}` : ""}`;
       if (!allowedOrigins.includes(wwwOrigin)) {
         allowedOrigins.push(wwwOrigin);
       }
-    } else if (parsed.hostname === "www.annonyme.pro") {
-      const apexOrigin = `${parsed.protocol}//annonyme.pro${parsed.port ? `:${parsed.port}` : ""}`;
+    } else if (parsed.hostname === "www.syllavoyage.com" || parsed.hostname === "www.annonyme.pro") {
+      const apexHostname = parsed.hostname.replace(/^www\./, "");
+      const apexOrigin = `${parsed.protocol}//${apexHostname}${parsed.port ? `:${parsed.port}` : ""}`;
       if (!allowedOrigins.includes(apexOrigin)) {
         allowedOrigins.push(apexOrigin);
       }
@@ -84,11 +85,13 @@ app.use(
 );
 app.use(
   express.json({
+    limit: "50mb",
     verify: (req, _res, buf) => {
       (req as any).rawBody = buf;
     },
   })
 );
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // API Routes
 app.use("/api", apiRouter);

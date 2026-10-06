@@ -24,18 +24,22 @@ export interface ProfessionalResponse {
   informations_professionnelles: string | null;
   statut_verification: string;
   created_at: string;
+  telephone: string | null;
 }
 
 export class ProfessionalsService {
-  private formatProfessional(pro: {
-    id: string;
-    utilisateur_id: string;
-    nom_structure: string;
-    description: string | null;
-    informations_professionnelles: string | null;
-    statut_verification: string;
-    created_at: { toString(): string } | string | Date;
-  }): ProfessionalResponse {
+  private formatProfessional(
+    pro: {
+      id: string;
+      utilisateur_id: string;
+      nom_structure: string;
+      description: string | null;
+      informations_professionnelles: string | null;
+      statut_verification: string;
+      created_at: { toString(): string } | string | Date;
+    },
+    telephone?: string | null
+  ): ProfessionalResponse {
     return {
       id: pro.id,
       utilisateur_id: pro.utilisateur_id,
@@ -44,6 +48,7 @@ export class ProfessionalsService {
       informations_professionnelles: pro.informations_professionnelles,
       statut_verification: pro.statut_verification,
       created_at: typeof pro.created_at === "string" ? pro.created_at : pro.created_at.toString(),
+      telephone: telephone || null,
     };
   }
 
@@ -85,8 +90,12 @@ export class ProfessionalsService {
       commentaire: null,
     });
 
+    const user = await db.orm.public.Utilisateur
+      .where({ id: userId })
+      .first();
+
     return {
-      professional: this.formatProfessional(createdPro),
+      professional: this.formatProfessional(createdPro, user?.telephone),
       verificationId,
     };
   }
@@ -100,7 +109,11 @@ export class ProfessionalsService {
       throw new AppError("Aucun profil professionnel associé à ce compte", 404, "PROFESSIONAL_NOT_FOUND");
     }
 
-    return this.formatProfessional(pro);
+    const user = await db.orm.public.Utilisateur
+      .where({ id: userId })
+      .first();
+
+    return this.formatProfessional(pro, user?.telephone);
   }
 
   async updateMe(userId: string, data: UpdateProfessionalDTO): Promise<ProfessionalResponse> {
@@ -161,7 +174,11 @@ export class ProfessionalsService {
       throw new AppError("Erreur lors de la mise à jour du profil professionnel", 500, "INTERNAL_SERVER_ERROR");
     }
 
-    return this.formatProfessional(updated);
+    const user = await db.orm.public.Utilisateur
+      .where({ id: userId })
+      .first();
+
+    return this.formatProfessional(updated, user?.telephone);
   }
 
   async listVerified(): Promise<ProfessionalResponse[]> {
@@ -170,7 +187,15 @@ export class ProfessionalsService {
       .where({ statut_verification: "VERIFIE" })
       .all();
 
-    return pros.map((p) => this.formatProfessional(p));
+    const results: ProfessionalResponse[] = [];
+    for (const pro of pros) {
+      const user = await db.orm.public.Utilisateur
+        .where({ id: pro.utilisateur_id })
+        .first();
+      results.push(this.formatProfessional(pro, user?.telephone));
+    }
+
+    return results;
   }
 
   async getById(id: string, requestingUserId?: string, requestingUserRole?: string): Promise<ProfessionalResponse> {
@@ -192,7 +217,11 @@ export class ProfessionalsService {
       }
     }
 
-    return this.formatProfessional(pro);
+    const user = await db.orm.public.Utilisateur
+      .where({ id: pro.utilisateur_id })
+      .first();
+
+    return this.formatProfessional(pro, user?.telephone);
   }
 }
 

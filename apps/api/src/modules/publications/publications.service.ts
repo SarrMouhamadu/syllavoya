@@ -48,68 +48,80 @@ export class PublicationsService {
     };
   }
 
-  async create(userId: string, data: CreatePublicationDTO): Promise<PublicationResponse> {
-    // 1. Règle stricte : seuls les professionnels vérifiés peuvent créer une publication
-    const pro = await db.orm.public.Professionnel
+  async create(userId: string, data: CreatePublicationDTO, userRole?: string): Promise<PublicationResponse> {
+    const isAdmin = userRole === "ADMIN";
+    let pro = await db.orm.public.Professionnel
       .where({ utilisateur_id: userId })
       .first();
 
-    const isVerified = pro && (pro.statut_verification === "VERIFIE" || pro.statut_verification === "ACCEPTEE");
-    if (!isVerified) {
-      throw new AppError(
-        "Seuls les professionnels vérifiés par Sylla Voyage peuvent créer une publication",
-        403,
-        "FORBIDDEN"
-      );
+    if (isAdmin && !pro) {
+      // Pour l'administrateur, lui associer la structure officielle de la plateforme
+      const adminProId = randomUUID();
+      pro = await db.orm.public.Professionnel.create({
+        id: adminProId,
+        utilisateur_id: userId,
+        nom_structure: "Administration Sylla Voyage",
+        description: "Compte officiel de la plateforme Sylla Voyage.",
+        statut_verification: "VERIFIE",
+        created_at: Temporal.Now.instant(),
+      });
     }
 
-    // 2. Règle d'abonnement : le professionnel doit posséder un abonnement actif
-    const hasActiveSub = await subscriptionsService.hasActiveSubscription(userId);
-    if (!hasActiveSub) {
-      throw new AppError(
-        "Un abonnement professionnel actif est requis pour créer une publication.",
-        403,
-        "SUBSCRIPTION_REQUIRED"
-      );
-    }
-
-    // 3. Règle de quota absolue : un professionnel peut créer au maximum 2 publications sur une période glissante de 7 jours
-    const existingPubs = await db.orm.public.Publication
-      .where({ professionnel_id: pro.id })
-      .all();
-
-    const now = Temporal.Now.instant();
-    const sevenDaysSeconds = 7 * 24 * 3600;
-    const sevenDaysAgo = now.subtract({ seconds: sevenDaysSeconds });
-
-    // Filtrer les publications créées au cours des 7 derniers jours (fenêtre glissante)
-    const recentPubs = existingPubs.filter((pub) => {
-      try {
-        const createdInstant = Temporal.Instant.from(pub.date_creation.toString());
-        return Temporal.Instant.compare(createdInstant, sevenDaysAgo) >= 0;
-      } catch {
-        return false;
+    if (!isAdmin) {
+      if (!pro || (pro.statut_verification !== "VERIFIE" && pro.statut_verification !== "ACCEPTEE")) {
+        throw new AppError(
+          "Seuls les professionnels vérifiés par Sylla Voyage peuvent créer une publication",
+          403,
+          "FORBIDDEN"
+        );
       }
-    });
 
-    if (recentPubs.length >= 2) {
-      // Trouver la plus ancienne publication parmi celles de la fenêtre glissante
-      recentPubs.sort((a, b) => {
-        const tA = Temporal.Instant.from(a.date_creation.toString());
-        const tB = Temporal.Instant.from(b.date_creation.toString());
-        return Temporal.Instant.compare(tA, tB);
+      // 2. Règle d'abonnement : le professionnel doit posséder un abonnement actif
+      const hasActiveSub = await subscriptionsService.hasActiveSubscription(userId);
+      if (!hasActiveSub) {
+        throw new AppError(
+          "Un abonnement professionnel actif est requis pour créer une publication.",
+          403,
+          "SUBSCRIPTION_REQUIRED"
+        );
+      }
+
+      // 3. Règle de quota : un professionnel peut créer au maximum 2 publications sur une période glissante de 7 jours
+      const existingPubs = await db.orm.public.Publication
+        .where({ professionnel_id: pro.id })
+        .all();
+
+      const now = Temporal.Now.instant();
+      const sevenDaysSeconds = 7 * 24 * 3600;
+      const sevenDaysAgo = now.subtract({ seconds: sevenDaysSeconds });
+
+      const recentPubs = existingPubs.filter((pub) => {
+        try {
+          const createdInstant = Temporal.Instant.from(pub.date_creation.toString());
+          return Temporal.Instant.compare(createdInstant, sevenDaysAgo) >= 0;
+        } catch {
+          return false;
+        }
       });
 
-      const oldestInWindow = recentPubs[0];
-      const oldestInstant = Temporal.Instant.from(oldestInWindow.date_creation.toString());
-      const nextAvailableInstant = oldestInstant.add({ seconds: sevenDaysSeconds });
-      const nextDateStr = nextAvailableInstant.toString();
+      if (recentPubs.length >= 2) {
+        recentPubs.sort((a, b) => {
+          const tA = Temporal.Instant.from(a.date_creation.toString());
+          const tB = Temporal.Instant.from(b.date_creation.toString());
+          return Temporal.Instant.compare(tA, tB);
+        });
 
-      throw new AppError(
-        `Limite de publication atteinte (maximum 2 publications sur les 7 derniers jours glissants). Vous pourrez à nouveau publier à partir du ${nextDateStr}.`,
-        403,
-        "WEEKLY_QUOTA_EXCEEDED"
-      );
+        const oldestInWindow = recentPubs[0];
+        const oldestInstant = Temporal.Instant.from(oldestInWindow.date_creation.toString());
+        const nextAvailableInstant = oldestInstant.add({ seconds: sevenDaysSeconds });
+        const nextDateStr = nextAvailableInstant.toString();
+
+        throw new AppError(
+          `Limite de publication atteinte (maximum 2 publications sur les 7 derniers jours glissants). Vous pourrez à nouveau publier à partir du ${nextDateStr}.`,
+          403,
+          "WEEKLY_QUOTA_EXCEEDED"
+        );
+      }
     }
 
     // 2. Validation des données
@@ -121,20 +133,25 @@ export class PublicationsService {
       throw new AppError("Le contenu de la publication est obligatoire", 400, "VALIDATION_ERROR");
     }
 
-    // 3. Création : toute publication créée est soumise à modération (statut initial EN_ATTENTE)
+    const now = Temporal.Now.instant();
     const id = randomUUID();
+
+    // Pour l'administrateur : publication directement APPROUVEE
+    // Pour une agence : statut EN_ATTENTE de modération
+    const statut = isAdmin ? "APPROUVEE" : "EN_ATTENTE";
+    const datePublication = isAdmin ? now : null;
 
     const created = await db.orm.public.Publication.create({
       id,
-      professionnel_id: pro.id,
+      professionnel_id: pro!.id,
       titre: data.titre.trim(),
       contenu: data.contenu.trim(),
-      statut: "EN_ATTENTE",
+      statut,
       date_creation: now,
-      date_publication: null,
+      date_publication: datePublication,
     });
 
-    return this.formatPublication(created, { id: pro.id, nom_structure: pro.nom_structure });
+    return this.formatPublication(created, { id: pro!.id, nom_structure: pro!.nom_structure });
   }
 
   async listPublic(): Promise<PublicationResponse[]> {

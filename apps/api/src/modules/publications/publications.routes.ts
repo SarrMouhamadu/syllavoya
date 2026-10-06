@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { publicationsController } from "./publications.controller.js";
-import { authenticate } from "../../middleware/authenticate.js";
+import { authenticate, optionalAuthenticate } from "../../middleware/authenticate.js";
 
 export const publicationsRoutes = Router();
 
@@ -17,6 +17,21 @@ publicationsRoutes.get("/", (req, res, next) => {
 // Consulter ses propres publications
 publicationsRoutes.get("/me", authenticate, (req, res, next) => {
   publicationsController.listMine(req, res, next);
+});
+
+// Consulter les interactions (likes, commentaires) d'une publication
+publicationsRoutes.get("/:id/interactions", optionalAuthenticate, (req, res, next) => {
+  publicationsController.getInteractions(req, res, next);
+});
+
+// Aimer / Retirer son like sur une publication (voyageurs, agences, admin)
+publicationsRoutes.post("/:id/like", authenticate, (req, res, next) => {
+  publicationsController.toggleLike(req, res, next);
+});
+
+// Ajouter un commentaire sur une publication
+publicationsRoutes.post("/:id/comments", authenticate, (req, res, next) => {
+  publicationsController.addComment(req, res, next);
 });
 
 // Consulter une publication par ID

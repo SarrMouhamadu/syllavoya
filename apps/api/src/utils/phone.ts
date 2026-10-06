@@ -11,7 +11,10 @@ import { AppError } from "../errors/AppError.js";
  *
  * Format cohérent stocké : E.164 (+221XXXXXXXXX)
  */
-export function validateAndNormalizeSenegalPhone(rawPhone: unknown): string {
+export function validateAndNormalizeSenegalPhone(
+  rawPhone: unknown,
+  options?: { allowInternational?: boolean }
+): string {
   if (typeof rawPhone !== "string") {
     throw new AppError("Le numéro de téléphone est obligatoire", 400, "INVALID_PHONE");
   }
@@ -24,7 +27,23 @@ export function validateAndNormalizeSenegalPhone(rawPhone: unknown): string {
   // Supprimer les caractères de formatage courants (espaces, tirets, points, parenthèses, slashes)
   let cleaned = trimmed.replace(/[\s\.\-\(\)\/]/g, "");
 
-  // Traiter le préfixe international
+  // Si indicatif international autorisé (hors indicatif +221 déjà traité plus bas)
+  if (options?.allowInternational) {
+    if (cleaned.startsWith("+") && !cleaned.startsWith("+221")) {
+      const digitsOnly = cleaned.slice(1);
+      // Standard international E.164 : 7 à 15 chiffres
+      if (/^\d{7,15}$/.test(digitsOnly)) {
+        return `+${digitsOnly}`;
+      }
+    } else if (cleaned.startsWith("00") && !cleaned.startsWith("00221")) {
+      const digitsOnly = cleaned.slice(2);
+      if (/^\d{7,15}$/.test(digitsOnly)) {
+        return `+${digitsOnly}`;
+      }
+    }
+  }
+
+  // Traiter le préfixe international sénégalais
   if (cleaned.startsWith("+221")) {
     cleaned = cleaned.slice(4);
   } else if (cleaned.startsWith("00221")) {

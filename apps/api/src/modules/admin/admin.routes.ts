@@ -43,3 +43,15 @@ adminRoutes.get("/audit-logs", (req, res, next) => {
   adminController.listAuditLogs(req, res, next);
 });
 
+// Créer directement un compte agence professionnelle avec ses identifiants
+adminRoutes.post("/professionals", (req, res, next) => {
+  adminController.createProfessionalAccount(req, res, next);
+});
+
+// Consulter les statistiques financières et globales (CA total, agences, voyageurs)
+adminRoutes.get("/stats", (req, res, next) => {
+  adminController.getFinancialStats(req, res, next);
+});
+
+
+

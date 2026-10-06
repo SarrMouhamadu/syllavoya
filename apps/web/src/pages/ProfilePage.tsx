@@ -10,11 +10,17 @@ export const ProfilePage: React.FC = () => {
     return null;
   }
 
-  // Si l'utilisateur s'est inscrit par téléphone seul, l'email stocké est un placeholder système (pro.XXXX@syllavoyage.pro).
-  // Ne jamais afficher ce placeholder comme étant le réel email de l'utilisateur.
-  const hasRealEmail = user.email && !user.email.endsWith("@syllavoyage.pro");
-  const displayEmail = hasRealEmail ? user.email : "Non renseigné";
-  const displayTelephone = user.telephone || "Non renseigné";
+  // 1. Validation stricte du téléphone : ne JAMAIS afficher une adresse email sous "Numéro de téléphone"
+  const isEmail = (val?: string | null): boolean => typeof val === "string" && val.includes("@");
+
+  // Si le champ telephone de l'utilisateur contient un @ ou est vide, ce n'est PAS un téléphone
+  const hasValidPhone = !!(user.telephone && !isEmail(user.telephone) && user.telephone.trim() !== "");
+  const displayTelephone = hasValidPhone ? (user.telephone as string).trim() : "Non renseigné";
+
+  // 2. Traitement de l'email : ne jamais afficher le placeholder système pro.XXXX@syllavoyage.pro
+  const isSystemPlaceholderEmail = !!(user.email && user.email.toLowerCase().endsWith("@syllavoyage.pro"));
+  const hasRealEmail = !!(user.email && isEmail(user.email) && !isSystemPlaceholderEmail);
+  const displayEmail = hasRealEmail ? user.email.trim() : "Non renseigné";
 
   const initials = ((user.prenom?.charAt(0) || "") + (user.nom?.charAt(0) || "")).toUpperCase() || "U";
 
@@ -41,20 +47,20 @@ export const ProfilePage: React.FC = () => {
           </div>
 
           <div className="profile-details-grid">
-            <div className="profile-detail-item">
+            <div className="profile-detail-item" id="profile-email-item">
               <span className="detail-label">
                 <IconMail size={15} />
                 <span>Adresse email</span>
               </span>
-              <span className="detail-value">{displayEmail}</span>
+              <span className="detail-value" id="profile-email-value">{displayEmail}</span>
             </div>
 
-            <div className="profile-detail-item">
+            <div className="profile-detail-item" id="profile-phone-item">
               <span className="detail-label">
                 <IconPhone size={15} />
                 <span>Numéro de téléphone</span>
               </span>
-              <span className="detail-value">{displayTelephone}</span>
+              <span className="detail-value" id="profile-phone-value">{displayTelephone}</span>
             </div>
 
             <div className="profile-detail-item">
