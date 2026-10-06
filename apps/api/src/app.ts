@@ -18,6 +18,9 @@ const configuredOrigins = (config.frontendUrl || "")
   .map((url) => url.trim().replace(/\/$/, ""))
   .filter(Boolean);
 
+// Initialiser la liste des origines autorisées
+const allowedOrigins: string[] = [];
+
 // Ajouter systématiquement les domaines officiels de production
 const productionDomains = ["https://syllavoyage.com", "https://www.syllavoyage.com"];
 for (const prodDomain of productionDomains) {

@@ -64,10 +64,7 @@ export class AdminController {
       const id = req.params["id"] as string;
       const result = await adminService.deletePublication(id, adminUserId);
 
-      res.status(200).json({
-        success: true,
-        ...result,
-      });
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }
