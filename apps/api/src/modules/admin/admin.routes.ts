@@ -28,6 +28,11 @@ adminRoutes.patch("/publications/:id", (req, res, next) => {
   adminController.treatPublication(req, res, next);
 });
 
+// Supprimer définitivement une publication par ADMIN
+adminRoutes.delete("/publications/:id", (req, res, next) => {
+  adminController.deletePublication(req, res, next);
+});
+
 // Consulter les signalements
 adminRoutes.get("/reports", (req, res, next) => {
   adminController.listReports(req, res, next);

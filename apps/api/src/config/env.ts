@@ -34,8 +34,5 @@ export const config = {
   naboopayApiKey: process.env.NABOOPAY_API_KEY || "",
   naboopayWebhookSecret: process.env.NABOOPAY_WEBHOOK_SECRET!.trim(),
   naboopayBaseUrl: process.env.NABOOPAY_BASE_URL || "https://api.naboopay.com",
-  bictorysApiKey: process.env.BICTORYS_API_KEY || "",
-  bictorysWebhookSecret: process.env.BICTORYS_WEBHOOK_SECRET ? process.env.BICTORYS_WEBHOOK_SECRET.trim() : "",
-  bictorysBaseUrl: process.env.BICTORYS_BASE_URL || "https://api.bictorys.com",
 };
 

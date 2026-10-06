@@ -36,6 +36,7 @@ export const AdminVerificationsPage: React.FC = () => {
   // Traitement d'une vérification
   const [activeVerification, setActiveVerification] = useState<AdminVerificationItem | null>(null);
   const [selectedDecision, setSelectedDecision] = useState<VerificationDecision>("APPROUVEE");
+  const [selectedPlan, setSelectedPlan] = useState<"MENSUEL" | "ANNUEL">("MENSUEL");
   const [commentaire, setCommentaire] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -87,6 +88,7 @@ export const AdminVerificationsPage: React.FC = () => {
   ) => {
     setActiveVerification(verification);
     setSelectedDecision(defaultDecision);
+    setSelectedPlan("MENSUEL");
     setCommentaire("");
     setSubmitError(null);
   };
@@ -101,6 +103,7 @@ export const AdminVerificationsPage: React.FC = () => {
 
       const res = await adminApi.treatVerification(activeVerification.id, {
         decision: selectedDecision,
+        plan: selectedDecision === "APPROUVEE" ? selectedPlan : undefined,
         commentaire: commentaire.trim() || undefined,
       });
 
@@ -108,7 +111,7 @@ export const AdminVerificationsPage: React.FC = () => {
         // Rafraîchir les données
         await fetchVerifications();
         const decisionLabels: Record<string, string> = {
-          APPROUVEE: "approuvé (statut : VÉRIFIÉ)",
+          APPROUVEE: `activé et approuvé (${selectedPlan === "ANNUEL" ? "Plan Annuel : 200 000 FCFA" : "Plan Mensuel : 20 000 FCFA"})`,
           REJETEE: "rejeté",
           SUSPENDUE: "suspendu",
           REVOQUEE: "révoqué",
@@ -533,7 +536,7 @@ export const AdminVerificationsPage: React.FC = () => {
                         className="btn btn-sm btn-primary"
                         style={{ background: "#16a34a", borderColor: "#16a34a", display: "inline-flex", alignItems: "center", gap: "6px" }}
                       >
-                        <IconCheck size={14} /> Approuver
+                        <IconCheck size={14} /> Activer
                       </button>
                       <button
                         type="button"
@@ -618,12 +621,85 @@ export const AdminVerificationsPage: React.FC = () => {
                   className="form-input"
                   style={{ width: "100%", padding: "8px 12px" }}
                 >
-                  <option value="APPROUVEE">Approuver (Passe le professionnel à VÉRIFIÉ)</option>
+                  <option value="APPROUVEE">Activer le professionnel (Statut : VÉRIFIÉ)</option>
                   <option value="REJETEE">Rejeter le dossier</option>
                   <option value="SUSPENDUE">Suspendre le professionnel</option>
                   <option value="REVOQUEE">Révoquer le statut professionnel</option>
                 </select>
               </div>
+
+              {selectedDecision === "APPROUVEE" && (
+                <div
+                  className="form-group"
+                  style={{
+                    marginBottom: "16px",
+                    padding: "14px",
+                    background: "#f0fdf4",
+                    borderRadius: "8px",
+                    border: "1px solid #bbf7d0",
+                  }}
+                >
+                  <label
+                    className="form-label"
+                    style={{ fontWeight: 700, color: "#166534", marginBottom: "10px", display: "block" }}
+                  >
+                    Formule d'abonnement professionnel :
+                  </label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        color: "#1e293b",
+                        padding: "8px 12px",
+                        background: selectedPlan === "MENSUEL" ? "#dcfce7" : "#ffffff",
+                        border: selectedPlan === "MENSUEL" ? "1px solid #86efac" : "1px solid #e2e8f0",
+                        borderRadius: "6px",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="planChoice"
+                        value="MENSUEL"
+                        checked={selectedPlan === "MENSUEL"}
+                        onChange={() => setSelectedPlan("MENSUEL")}
+                      />
+                      <span>
+                        <strong>Mensuel : 20 000 FCFA</strong> (durée : 1 mois / 30 jours)
+                      </span>
+                    </label>
+
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        color: "#1e293b",
+                        padding: "8px 12px",
+                        background: selectedPlan === "ANNUEL" ? "#dcfce7" : "#ffffff",
+                        border: selectedPlan === "ANNUEL" ? "1px solid #86efac" : "1px solid #e2e8f0",
+                        borderRadius: "6px",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="planChoice"
+                        value="ANNUEL"
+                        checked={selectedPlan === "ANNUEL"}
+                        onChange={() => setSelectedPlan("ANNUEL")}
+                      />
+                      <span>
+                        <strong>Annuel : 200 000 FCFA</strong> (durée : 12 mois / 365 jours)
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              )}
 
               <div className="form-group" style={{ marginBottom: "20px" }}>
                 <label className="form-label" style={{ fontWeight: 600, color: "#334155" }}>
@@ -632,7 +708,7 @@ export const AdminVerificationsPage: React.FC = () => {
                 <textarea
                   className="form-input"
                   rows={3}
-                  placeholder="ex: Pièce d'identité conforme et valide."
+                  placeholder="ex: Dossier conforme. Activation administrative validée."
                   value={commentaire}
                   onChange={(e) => setCommentaire(e.target.value)}
                   style={{ width: "100%", padding: "8px 12px" }}
@@ -661,7 +737,11 @@ export const AdminVerificationsPage: React.FC = () => {
                         : "#2563eb",
                   }}
                 >
-                  {submitting ? "Application..." : "Confirmer la décision"}
+                  {submitting
+                    ? "Enregistrement..."
+                    : selectedDecision === "APPROUVEE"
+                    ? `Activer le professionnel (${selectedPlan === "ANNUEL" ? "200 000 FCFA" : "20 000 FCFA"})`
+                    : "Confirmer la décision"}
                 </button>
               </div>
             </form>

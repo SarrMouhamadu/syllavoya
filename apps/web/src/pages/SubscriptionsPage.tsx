@@ -21,7 +21,6 @@ import {
   IconCreditCard,
   IconPhone,
   IconFileText,
-  IconLock,
 } from "../components/Icons";
 
 export const SubscriptionsPage: React.FC = () => {
@@ -43,8 +42,16 @@ export const SubscriptionsPage: React.FC = () => {
   const [verifyingPayment, setVerifyingPayment] = useState<boolean>(false);
   const [paymentVerificationStatus, setPaymentVerificationStatus] = useState<string | null>(null);
 
-  // Rôle sélectionné pour les visiteurs non connectés
-  const [unauthRole, setUnauthRole] = useState<"VOYAGEUR" | "PROFESSIONNEL">("VOYAGEUR");
+  // Rôle sélectionné pour l'affichage des formules (Voyageur / Professionnel)
+  const [activeRoleTab, setActiveRoleTab] = useState<"VOYAGEUR" | "PROFESSIONNEL">(
+    user?.role === "PROFESSIONNEL" ? "PROFESSIONNEL" : "VOYAGEUR"
+  );
+
+  useEffect(() => {
+    if (user?.role === "PROFESSIONNEL") {
+      setActiveRoleTab("PROFESSIONNEL");
+    }
+  }, [user?.role]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -82,11 +89,9 @@ export const SubscriptionsPage: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
-  // Filtrer les formules selon le rôle de l'utilisateur ou le filtre visiteur
-  const effectiveRole = isAuthenticated && user ? user.role : unauthRole;
+  // Filtrer les formules selon l'onglet choisi (consulte uniquement les tarifs officiels existants)
   const filteredPlans = plans.filter((p) => {
-    if (effectiveRole === "ADMIN") return true;
-    return p.type_utilisateur === effectiveRole;
+    return p.type_utilisateur === activeRoleTab;
   });
 
   const hasActiveSub = mySubscription?.statut === "ACTIF";
@@ -179,7 +184,7 @@ export const SubscriptionsPage: React.FC = () => {
           <span className="page-header-badge">Abonnements & Tarifs</span>
           <h1 className="page-title">Nos Formules d'Abonnement</h1>
           <p className="page-subtitle">
-            Accédez aux services certifiés de Sylla Voyage selon votre profil. Tarifs transparents, sans engagement caché.
+            Consultez les formules d'abonnement Sylla Voyage selon votre profil. Tarifs transparents, sans engagement caché.
           </p>
         </div>
 
@@ -292,32 +297,87 @@ export const SubscriptionsPage: React.FC = () => {
           </section>
         )}
 
-        {/* SÉLECTEUR DE RÔLE SI VISITEUR NON CONNECTÉ */}
-        {!isAuthenticated && (
-          <div className="role-switch-container">
-            <span className="role-switch-label">Afficher les offres pour :</span>
-            <div className="role-switch-buttons">
-              <button
-                type="button"
-                className={`btn btn-sm ${unauthRole === "VOYAGEUR" ? "btn-primary" : "btn-outline"}`}
-                onClick={() => setUnauthRole("VOYAGEUR")}
-                id="tab-role-voyageur"
-              >
-                <IconCompass size={16} />
-                <span>Voyageurs</span>
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${unauthRole === "PROFESSIONNEL" ? "btn-primary" : "btn-outline"}`}
-                onClick={() => setUnauthRole("PROFESSIONNEL")}
-                id="tab-role-professionnel"
-              >
-                <IconBuilding size={16} />
-                <span>Professionnels</span>
-              </button>
-            </div>
+        {/* SÉLECTEUR DE RÔLE INTUITIF VOYAGEUR / PROFESSIONNEL */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "12px",
+            marginBottom: "36px",
+          }}
+          className="role-switch-wrapper"
+        >
+          <div
+            style={{
+              display: "inline-flex",
+              backgroundColor: "#f1f5f9",
+              padding: "5px",
+              borderRadius: "14px",
+              boxShadow: "inset 0 1px 3px rgba(0, 0, 0, 0.08)",
+              gap: "4px",
+              maxWidth: "100%",
+            }}
+            role="tablist"
+            aria-label="Sélectionner le profil"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeRoleTab === "VOYAGEUR"}
+              onClick={() => setActiveRoleTab("VOYAGEUR")}
+              id="tab-role-voyageur"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 24px",
+                borderRadius: "10px",
+                border: "none",
+                cursor: "pointer",
+                fontWeight: activeRoleTab === "VOYAGEUR" ? 700 : 500,
+                fontSize: "15px",
+                backgroundColor: activeRoleTab === "VOYAGEUR" ? "#ffffff" : "transparent",
+                color: activeRoleTab === "VOYAGEUR" ? "var(--color-primary, #0284c7)" : "#64748b",
+                boxShadow: activeRoleTab === "VOYAGEUR" ? "0 2px 6px rgba(0, 0, 0, 0.08)" : "none",
+                transition: "all 0.2s ease",
+              }}
+            >
+              <IconCompass size={18} />
+              <span>Formules Voyageur</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeRoleTab === "PROFESSIONNEL"}
+              onClick={() => setActiveRoleTab("PROFESSIONNEL")}
+              id="tab-role-professionnel"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 24px",
+                borderRadius: "10px",
+                border: "none",
+                cursor: "pointer",
+                fontWeight: activeRoleTab === "PROFESSIONNEL" ? 700 : 500,
+                fontSize: "15px",
+                backgroundColor: activeRoleTab === "PROFESSIONNEL" ? "#ffffff" : "transparent",
+                color: activeRoleTab === "PROFESSIONNEL" ? "var(--color-primary, #0284c7)" : "#64748b",
+                boxShadow: activeRoleTab === "PROFESSIONNEL" ? "0 2px 6px rgba(0, 0, 0, 0.08)" : "none",
+                transition: "all 0.2s ease",
+              }}
+            >
+              <IconBuilding size={18} />
+              <span>Formules Professionnel</span>
+            </button>
           </div>
-        )}
+          <p style={{ margin: 0, fontSize: "13px", color: "#64748b", textAlign: "center" }}>
+            {activeRoleTab === "VOYAGEUR"
+              ? "Accès complet aux séjours, circuits et contact direct avec les agences partenaires."
+              : "Publication d'annonces, visibilité dans l'annuaire et messagerie avec les voyageurs."}
+          </p>
+        </div>
 
         {/* 2. MODAL / ENCART DE PAIEMENT SÉLECTIONNÉ */}
         {selectedPlan && (
@@ -458,7 +518,7 @@ export const SubscriptionsPage: React.FC = () => {
                                 <IconPhone size={16} />
                                 <span>Mobile Money</span>
                               </span>
-                              <span className="provider-subtitle">Wave / Orange Money (NabooPay)</span>
+                              <span className="provider-subtitle">Wave / Orange Money</span>
                               {nabooChannel && (
                                 <span className="provider-fee">
                                   Frais opérateur : +{nabooChannel.frais_estimes.toLocaleString("fr-FR")} FCFA
@@ -639,21 +699,6 @@ export const SubscriptionsPage: React.FC = () => {
             })}
           </div>
         )}
-
-        {/* 4. NOTE DE CONFIANCE & SÉCURITÉ */}
-        <div className="subscription-guarantee-card">
-          <div className="guarantee-icon">
-            <IconLock size={22} />
-          </div>
-          <div className="guarantee-content">
-            <h4>Paiement sécurisé</h4>
-            <p>
-              Les règlements par Mobile Money (Wave et Orange Money) sont pris en charge par la passerelle sécurisée
-              NabooPay. Aucune coordonnée bancaire n'est conservée sur nos serveurs. L'activation
-              de votre formule est effectuée automatiquement dès confirmation de la transaction.
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );

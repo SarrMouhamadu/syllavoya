@@ -53,8 +53,18 @@ export const RegisterPage: React.FC = () => {
     setError(null);
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const validExtensions = [".pdf", ".jpg", ".jpeg", ".png"];
       const lowerName = file.name.toLowerCase();
+      const videoExtensions = [".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv", ".wmv", ".m4v", ".3gp"];
+      const isVideo = file.type.startsWith("video/") || videoExtensions.some((ext) => lowerName.endsWith(ext));
+
+      if (isVideo) {
+        setError("Les vidéos sont formellement refusées. Seules les photos (JPG, PNG) et documents PDF sont acceptés.");
+        e.target.value = "";
+        setPieceIdentiteFile(null);
+        return;
+      }
+
+      const validExtensions = [".pdf", ".jpg", ".jpeg", ".png"];
       const hasValidExt = validExtensions.some((ext) => lowerName.endsWith(ext));
 
       if (!hasValidExt) {
@@ -83,8 +93,18 @@ export const RegisterPage: React.FC = () => {
     setError(null);
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const validExtensions = [".pdf", ".jpg", ".jpeg", ".png"];
       const lowerName = file.name.toLowerCase();
+      const videoExtensions = [".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv", ".wmv", ".m4v", ".3gp"];
+      const isVideo = file.type.startsWith("video/") || videoExtensions.some((ext) => lowerName.endsWith(ext));
+
+      if (isVideo) {
+        setError(`Les vidéos sont formellement refusées pour "${docLabel}". Seules les photos (JPG, PNG) et documents PDF sont acceptés.`);
+        e.target.value = "";
+        setDoc(null);
+        return;
+      }
+
+      const validExtensions = [".pdf", ".jpg", ".jpeg", ".png"];
       const hasValidExt = validExtensions.some((ext) => lowerName.endsWith(ext));
 
       if (!hasValidExt) {

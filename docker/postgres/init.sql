@@ -564,7 +564,9 @@ ALTER TABLE ONLY public.signalement
 --
 
 ALTER TABLE ONLY public.utilisateur
-    ADD CONSTRAINT utilisateur_email_key UNIQUE (email);
+    ADD CONSTRAINT utilisateur_email_role_key UNIQUE (email, role);
+
+CREATE UNIQUE INDEX IF NOT EXISTS utilisateur_telephone_role_idx ON public.utilisateur (telephone, role) WHERE telephone IS NOT NULL;
 
 
 --

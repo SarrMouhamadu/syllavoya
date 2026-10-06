@@ -2252,7 +2252,8 @@
               "uniques": [
                 {
                   "columns": [
-                    "email"
+                    "email",
+                    "role"
                   ]
                 }
               ]

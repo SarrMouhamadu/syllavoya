@@ -14,6 +14,23 @@ export interface SendMessageParams {
 }
 
 export class ConversationsService {
+  private validateMessageMedia(contenu: string): void {
+    const videoPatterns = [
+      /data:video\//i,
+      /\[VIDEO:/i,
+      /\.(mp4|mov|avi|mkv|webm|flv|wmv|m4v|3gp)(\?|$|\]|\s)/i,
+    ];
+    for (const pattern of videoPatterns) {
+      if (pattern.test(contenu)) {
+        throw new AppError(
+          "Les vidéos sont formellement refusées. Seules les photos aux formats JPG, JPEG, PNG ou WEBP sont autorisées.",
+          400,
+          "INVALID_FILE_TYPE"
+        );
+      }
+    }
+  }
+
   /**
    * Créer une conversation depuis un voyageur vers un professionnel vérifié.
    * Règle stricte : Un professionnel ne peut jamais démarrer la première conversation.
@@ -96,6 +113,7 @@ export class ConversationsService {
 
     // 4. Si un premier message est fourni par le voyageur, l'enregistrer en base
     if (params.premier_message && typeof params.premier_message === "string" && params.premier_message.trim()) {
+      this.validateMessageMedia(params.premier_message.trim());
       firstMessageCreated = await db.orm.public.Message.create({
         id: randomUUID(),
         conversation_id: conversation.id,
@@ -275,6 +293,8 @@ export class ConversationsService {
     if (!contenu || typeof contenu !== "string" || !contenu.trim()) {
       throw new AppError("Le contenu du message ne peut pas être vide.", 400, "VALIDATION_ERROR");
     }
+
+    this.validateMessageMedia(contenu.trim());
 
     const conversation = await db.orm.public.Conversation
       .where({ id: conversationId })

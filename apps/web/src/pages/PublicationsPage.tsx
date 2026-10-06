@@ -5,6 +5,7 @@ import { LoadingSpinner } from "../components/LoadingSpinner";
 import { Alert } from "../components/Alert";
 import { EmptyState } from "../components/EmptyState";
 import { useSubscriptionAccess } from "../hooks/useSubscriptionAccess";
+import { LockedSubscriptionPaywall } from "../components/LockedSubscriptionPaywall";
 import { PublicationInteractions } from "../components/PublicationInteractions";
 import {
   IconFileText,
@@ -12,7 +13,6 @@ import {
   IconCalendar,
   IconRefresh,
   IconArrowRight,
-  IconLock,
   IconShieldCheck,
 } from "../components/Icons";
 
@@ -23,6 +23,7 @@ export const PublicationsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchPublications = useCallback(async () => {
+    if (!hasAccess) return;
     try {
       setLoading(true);
       setError(null);
@@ -37,11 +38,44 @@ export const PublicationsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [hasAccess]);
 
   useEffect(() => {
-    fetchPublications();
-  }, [fetchPublications]);
+    if (hasAccess) {
+      fetchPublications();
+    }
+  }, [hasAccess, fetchPublications]);
+
+  if (accessLoading) {
+    return (
+      <div className="publications-page">
+        <div className="container">
+          <div className="center-container" style={{ minHeight: "400px" }}>
+            <LoadingSpinner message="Vérification de vos accès..." size="large" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="publications-page">
+        <div className="container">
+          <LockedSubscriptionPaywall
+            title="Offres & Publications Réservées"
+            subtitle="Les annonces officielles, séjours et circuits de voyage exclusifs sont réservés aux abonnés Sylla Voyage. Activez votre abonnement pour accéder à toutes les offres en temps réel et contacter les agences."
+            perks={[
+              "Accès illimité aux offres de voyage et circuits vérifiés",
+              "Détails complets et coordonnées directes des agences partenaires",
+              "Possibilité de réagir, commenter et poser des questions aux professionnels",
+              "Support prioritaire Sylla Voyage",
+            ]}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="publications-page">
@@ -75,19 +109,6 @@ export const PublicationsPage: React.FC = () => {
               <IconRefresh size={16} />
               <span>Réessayer</span>
             </button>
-          </div>
-        )}
-
-        {/* Bannière discrète d'abonnement si non abonné */}
-        {!accessLoading && !hasAccess && !loading && !error && publications.length > 0 && (
-          <div className="traveler-sub-banner" style={{ marginBottom: "28px" }}>
-            <div className="traveler-sub-banner-text">
-              <IconLock size={18} />
-              <span>Abonnez-vous pour contacter directement les agences et débloquer tous les détails exclusifs.</span>
-            </div>
-            <Link to="/subscriptions" className="btn btn-primary btn-sm">
-              Découvrir les offres (5 000 FCFA/mois)
-            </Link>
           </div>
         )}
 

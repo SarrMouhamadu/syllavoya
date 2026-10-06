@@ -71,6 +71,7 @@ export type VerificationDecision = "APPROUVEE" | "REJETEE" | "SUSPENDUE" | "REVO
 export interface TreatVerificationParams {
   decision: VerificationDecision;
   commentaire?: string;
+  plan?: "MENSUEL" | "ANNUEL";
 }
 
 export const adminApi = {
@@ -136,6 +137,18 @@ export const adminApi = {
     );
   },
 
+  // Supprimer définitivement une publication par l'administrateur
+  deletePublication: async (
+    publicationId: string
+  ): Promise<{ success: boolean; message: string }> => {
+    return apiFetch<{ success: boolean; message: string }>(
+      `/admin/publications/${publicationId}`,
+      {
+        method: "DELETE",
+      }
+    );
+  },
+
   // Créer directement un compte agence professionnelle avec ses identifiants
   createProfessionalAccount: async (
     params: CreateProfessionalAccountParams
@@ -156,10 +169,15 @@ export interface AdminFinancialStats {
   chiffreAffairesTotal: number;
   agences: {
     total: number;
+    enAttente: number;
+    actifsPayeurs: number;
+    inactifsNonPayeurs: number;
     chiffreAffaires: number;
   };
   voyageurs: {
     total: number;
+    actifsAbonnes: number;
+    nonAbonnes: number;
     chiffreAffaires: number;
   };
 }

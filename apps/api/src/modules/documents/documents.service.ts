@@ -19,6 +19,22 @@ export class DocumentsService {
       throw new AppError("Le document (fichier) est obligatoire.", 400, "VALIDATION_ERROR");
     }
 
+    const rawFichier = params.fichier.trim();
+    const lowerFichier = rawFichier.toLowerCase();
+
+    // Refus strict des vidéos : seules les photos et documents PDF sont autorisés
+    const videoExtensions = [".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv", ".wmv", ".m4v", ".3gp"];
+    const isVideo = lowerFichier.startsWith("data:video/") ||
+      videoExtensions.some((ext) => lowerFichier.endsWith(ext) || lowerFichier.includes(ext + "?"));
+
+    if (isVideo) {
+      throw new AppError(
+        "Les fichiers vidéo sont formellement refusés. Seules les photos (JPG, PNG, WEBP) et documents PDF sont autorisés.",
+        400,
+        "INVALID_FILE_TYPE"
+      );
+    }
+
     const conversation = await db.orm.public.Conversation
       .where({ id: conversationId })
       .first();

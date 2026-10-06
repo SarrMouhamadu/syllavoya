@@ -3,13 +3,14 @@ model Utilisateur {
   id           String   @id @default(uuid())
   nom          String
   prenom       String
-  email        String   @unique
+  email        String
   telephone    String?
   mot_de_passe String
   role         String
   statut       String
   created_at   DateTime @default(now())
 
+  @@unique([email, role], name: "utilisateur_email_role_key")
   @@map("utilisateur")
 }
 

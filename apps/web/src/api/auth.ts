@@ -3,6 +3,7 @@ import { apiFetch, type ApiUser } from "./client";
 export interface LoginParams {
   email: string;
   mot_de_passe: string;
+  role?: "VOYAGEUR" | "PROFESSIONNEL" | "ADMIN";
 }
 
 export interface RegisterParams {
@@ -54,6 +55,13 @@ export const authApi = {
   getMe: async (): Promise<MeResponse> => {
     return apiFetch<MeResponse>("/auth/me", {
       method: "GET",
+    });
+  },
+
+  forgotPassword: async (identifiant: string): Promise<{ success: boolean; data: { message: string } }> => {
+    return apiFetch<{ success: boolean; data: { message: string } }>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ identifiant }),
     });
   },
 };

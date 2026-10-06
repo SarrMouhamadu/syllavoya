@@ -20,6 +20,7 @@ export interface RegisterDTO {
 export interface LoginDTO {
   email: string;
   mot_de_passe: string;
+  role?: string;
 }
 
 export interface UserResponse {
@@ -140,13 +141,22 @@ export class AuthService {
 
     const normalizedEmail = data.email.trim().toLowerCase();
 
-    // Vérifier l'unicité de l'email
-    const existing = await db.orm.public.Utilisateur
-      .where({ email: normalizedEmail })
+    // Vérifier l'unicité de l'email pour le rôle VOYAGEUR
+    const existingEmail = await db.orm.public.Utilisateur
+      .where({ email: normalizedEmail, role: "VOYAGEUR" })
       .first();
 
-    if (existing) {
-      throw new AppError("Un compte avec cet email existe déjà", 409, "EMAIL_ALREADY_EXISTS");
+    if (existingEmail) {
+      throw new AppError("Un compte voyageur avec cet email existe déjà", 409, "EMAIL_ALREADY_EXISTS");
+    }
+
+    // Vérifier l'unicité du téléphone pour le rôle VOYAGEUR
+    const existingPhone = await db.orm.public.Utilisateur
+      .where({ telephone: normalizedPhone, role: "VOYAGEUR" })
+      .first();
+
+    if (existingPhone) {
+      throw new AppError("Un compte voyageur avec ce numéro de téléphone existe déjà", 409, "PHONE_ALREADY_EXISTS");
     }
 
     const hashedPassword = await this.hashPassword(data.mot_de_passe);
@@ -221,16 +231,16 @@ export class AuthService {
       );
     }
 
-    // Vérifier l'unicité du téléphone
+    // Vérifier l'unicité du téléphone pour le rôle PROFESSIONNEL
     const existingPhone = await db.orm.public.Utilisateur
-      .where({ telephone: normalizedPhone })
+      .where({ telephone: normalizedPhone, role: "PROFESSIONNEL" })
       .first();
 
     if (existingPhone) {
-      throw new AppError("Un compte avec ce numéro de téléphone existe déjà", 409, "PHONE_ALREADY_EXISTS");
+      throw new AppError("Un compte professionnel avec ce numéro de téléphone existe déjà", 409, "PHONE_ALREADY_EXISTS");
     }
 
-    // Email facultatif : si fourni, le valider et vérifier l'unicité ; sinon générer un email système
+    // Email facultatif : si fourni, le valider et vérifier l'unicité pour le rôle PROFESSIONNEL ; sinon générer un email système
     let normalizedEmail: string;
     if (data.email && typeof data.email === "string" && data.email.trim()) {
       if (!this.validateEmail(data.email.trim())) {
@@ -238,10 +248,10 @@ export class AuthService {
       }
       normalizedEmail = data.email.trim().toLowerCase();
       const existingEmail = await db.orm.public.Utilisateur
-        .where({ email: normalizedEmail })
+        .where({ email: normalizedEmail, role: "PROFESSIONNEL" })
         .first();
       if (existingEmail) {
-        throw new AppError("Un compte avec cet email existe déjà", 409, "EMAIL_ALREADY_EXISTS");
+        throw new AppError("Un compte professionnel avec cet email existe déjà", 409, "EMAIL_ALREADY_EXISTS");
       }
     } else {
       const cleanDigits = normalizedPhone.replace(/\+/g, "");
@@ -377,44 +387,61 @@ export class AuthService {
       throw new AppError("Le mot de passe est requis", 400, "VALIDATION_ERROR");
     }
 
-    // Rechercher par email OU par numéro de téléphone normalisé
-    let user = await db.orm.public.Utilisateur
+    // Rechercher tous les comptes candidats par email OU par numéro de téléphone
+    let candidates = await db.orm.public.Utilisateur
       .where({ email: normalizedIdentifier })
-      .first();
+      .all();
 
-    if (!user) {
+    if (candidates.length === 0) {
       try {
         const phone = validateAndNormalizeSenegalPhone(rawIdentifier, { allowInternational: true });
-        user = await db.orm.public.Utilisateur
+        candidates = await db.orm.public.Utilisateur
           .where({ telephone: phone })
-          .first();
+          .all();
       } catch {
         // Pas un numéro de téléphone valide, ignorer
       }
     }
 
-    if (!user) {
+    if (candidates.length === 0) {
       loginRateLimiter.recordFailedAttempt(clientIp, normalizedIdentifier);
       throw new AppError("Identifiants invalides", 401, "INVALID_CREDENTIALS");
     }
 
-    const passwordMatches = await this.comparePassword(data.mot_de_passe, user.mot_de_passe);
-    if (!passwordMatches) {
+    // Si un rôle spécifique est précisé, filtrer les candidats
+    if (data.role && typeof data.role === "string" && data.role.trim()) {
+      const filtered = candidates.filter((c) => c.role.toUpperCase() === data.role!.trim().toUpperCase());
+      if (filtered.length > 0) {
+        candidates = filtered;
+      }
+    }
+
+    // Vérifier quel compte candidat correspond au mot de passe
+    let matchedUser = null;
+    for (const candidate of candidates) {
+      const passwordMatches = await this.comparePassword(data.mot_de_passe, candidate.mot_de_passe);
+      if (passwordMatches) {
+        matchedUser = candidate;
+        break;
+      }
+    }
+
+    if (!matchedUser) {
       loginRateLimiter.recordFailedAttempt(clientIp, normalizedIdentifier);
       throw new AppError("Identifiants invalides", 401, "INVALID_CREDENTIALS");
     }
 
-    if (user.statut === "SUSPENDU") {
+    if (matchedUser.statut === "SUSPENDU") {
       throw new AppError("Ce compte est suspendu", 403, "ACCOUNT_SUSPENDED");
     }
 
-    // Connexion réussie : réinitialiser le compteur de tentatives échouées pour cet IP/identifiant
+    // Connexion réussie : réinitialiser le compteur de tentatives échouées
     loginRateLimiter.reset(clientIp, normalizedIdentifier);
 
-    const token = this.generateToken({ userId: user.id, role: user.role });
+    const token = this.generateToken({ userId: matchedUser.id, role: matchedUser.role });
 
     return {
-      user: this.sanitizeUser(user),
+      user: this.sanitizeUser(matchedUser),
       token,
     };
   }
@@ -426,6 +453,32 @@ export class AuthService {
 
     if (!user) return null;
     return this.sanitizeUser(user);
+  }
+
+  /**
+   * Assistance en cas d'oubli de mot de passe :
+   * Valide l'identifiant fourni (email ou téléphone) et indique la procédure sécurisée
+   * de réinitialisation sans dépendance à un service email payant ni OTP artificiel.
+   */
+  async forgotPassword(rawIdentifier?: string): Promise<{ message: string }> {
+    const identifiant = typeof rawIdentifier === "string" ? rawIdentifier.trim() : "";
+    if (!identifiant) {
+      throw new AppError("L'email ou le numéro de téléphone est requis.", 400, "VALIDATION_ERROR");
+    }
+
+    const normalized = identifiant.toLowerCase();
+    let candidates = await db.orm.public.Utilisateur.where({ email: normalized }).all();
+    if (candidates.length === 0) {
+      try {
+        const phone = validateAndNormalizeSenegalPhone(identifiant, { allowInternational: true });
+        candidates = await db.orm.public.Utilisateur.where({ telephone: phone }).all();
+      } catch {}
+    }
+
+    return {
+      message:
+        "Si un compte correspond à ces informations, votre demande a été prise en compte. Pour des raisons de sécurité, contactez le support Sylla Voyage au (+221) 33 800 00 00 ou à support@syllavoyage.sn pour finaliser la réinitialisation de vos accès.",
+    };
   }
 
   // Omettre mot_de_passe des réponses

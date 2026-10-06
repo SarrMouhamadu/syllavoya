@@ -48,15 +48,12 @@ services:
       PORT: ${API_PORT:-3000}
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-sylla_voyage_dev}?schema=public
       REDIS_URL: redis://redis:6379
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      FRONTEND_URL: ${FRONTEND_URL:-https://syllavoyage.com}
       JWT_SECRET: ${JWT_SECRET:-sylla_voyage_dev_secret_key_change_in_production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       NABOOPAY_API_KEY: ${NABOOPAY_API_KEY:-}
       NABOOPAY_WEBHOOK_SECRET: ${NABOOPAY_WEBHOOK_SECRET:-sylla_naboopay_webhook_secret_dev}
       NABOOPAY_BASE_URL: ${NABOOPAY_BASE_URL:-https://api.naboopay.com}
-      BICTORYS_API_KEY: ${BICTORYS_API_KEY:-}
-      BICTORYS_WEBHOOK_SECRET: ${BICTORYS_WEBHOOK_SECRET:-sylla_bictorys_webhook_secret_dev}
-      BICTORYS_BASE_URL: ${BICTORYS_BASE_URL:-https://api.bictorys.com}
     ports:
       - "127.0.0.1:3001:3000"
     depends_on:
@@ -73,7 +70,7 @@ services:
       context: .
       dockerfile: Dockerfile.web
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000/api}
+        VITE_API_URL: ${VITE_API_URL:-https://api.syllavoyage.com/api}
     container_name: sylla_voyage_web
     restart: unless-stopped
     command: ["serve", "-s", "dist", "-l", "tcp://0.0.0.0:5173", "--no-clipboard"]

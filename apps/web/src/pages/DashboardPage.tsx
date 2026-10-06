@@ -50,8 +50,8 @@ export const DashboardPage: React.FC = () => {
 
   const [financialStats, setFinancialStats] = useState<AdminFinancialStats>({
     chiffreAffairesTotal: 0,
-    agences: { total: 0, chiffreAffaires: 0 },
-    voyageurs: { total: 0, chiffreAffaires: 0 },
+    agences: { total: 0, enAttente: 0, actifsPayeurs: 0, inactifsNonPayeurs: 0, chiffreAffaires: 0 },
+    voyageurs: { total: 0, actifsAbonnes: 0, nonAbonnes: 0, chiffreAffaires: 0 },
   });
 
   // États pour la création d'offre professionnelle
@@ -107,6 +107,17 @@ export const DashboardPage: React.FC = () => {
     if (!file) return;
 
     const lowerName = file.name.toLowerCase();
+    const videoExtensions = [".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv", ".wmv", ".m4v", ".3gp"];
+    const isVideo = file.type.startsWith("video/") || videoExtensions.some((ext) => lowerName.endsWith(ext));
+
+    if (isVideo) {
+      setOfferError("Les vidéos sont formellement refusées. Seules les photos aux formats JPG, JPEG, PNG ou WEBP sont autorisées.");
+      e.target.value = "";
+      setOfferPhotoFile(null);
+      setOfferPhotoPreview(null);
+      return;
+    }
+
     const validImageExts = [".jpg", ".jpeg", ".png", ".webp"];
     const isImage = file.type.startsWith("image/") || validImageExts.some((ext) => lowerName.endsWith(ext));
 
@@ -192,6 +203,17 @@ export const DashboardPage: React.FC = () => {
     if (!file) return;
 
     const lowerName = file.name.toLowerCase();
+    const videoExtensions = [".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv", ".wmv", ".m4v", ".3gp"];
+    const isVideo = file.type.startsWith("video/") || videoExtensions.some((ext) => lowerName.endsWith(ext));
+
+    if (isVideo) {
+      setEditError("Les vidéos sont formellement refusées. Seules les photos aux formats JPG, JPEG, PNG ou WEBP sont autorisées.");
+      e.target.value = "";
+      setEditPhotoFile(null);
+      setEditPhotoPreview(null);
+      return;
+    }
+
     const validImageExts = [".jpg", ".jpeg", ".png", ".webp"];
     const isImage = file.type.startsWith("image/") || validImageExts.some((ext) => lowerName.endsWith(ext));
 
@@ -368,12 +390,13 @@ export const DashboardPage: React.FC = () => {
           setConversations(convRes.data.conversations);
         }
 
-        // Pour les professionnels : récupérer ses offres et celles de la plateforme
+        // Pour les professionnels : récupérer ses offres et celles de la plateforme si abonné
         if (user?.role === "PROFESSIONNEL") {
+          const isSubActive = subRes?.data?.subscription?.statut === "ACTIF";
           const [verifRes, pubsRes, publicPubsRes] = await Promise.all([
             verificationApi.getMyVerificationState().catch(() => null),
             publicationsApi.listMine().catch(() => null),
-            publicationsApi.listPublic().catch(() => null),
+            isSubActive ? publicationsApi.listPublic().catch(() => null) : Promise.resolve(null),
           ]);
 
           if (isMounted) {
@@ -389,8 +412,8 @@ export const DashboardPage: React.FC = () => {
           }
         }
 
-        // Pour les voyageurs : récupérer les offres réelles publiées
-        if (user?.role === "VOYAGEUR") {
+        // Pour les voyageurs : récupérer les offres réelles publiées uniquement si abonné
+        if (user?.role === "VOYAGEUR" && subRes?.data?.subscription?.statut === "ACTIF") {
           const pubsRes = await publicationsApi.listPublic().catch(() => null);
           if (isMounted && pubsRes?.success && pubsRes.data?.publications) {
             setPublicPublications(pubsRes.data.publications);
@@ -460,6 +483,103 @@ export const DashboardPage: React.FC = () => {
   const renderCreateOfferModal = () => {
     if (!showCreateModal) return null;
     const isAdmin = user?.role === "ADMIN";
+    const rawStatus = (verificationData?.statut_verification || "EN_ATTENTE").toUpperCase();
+    const isVerified = rawStatus === "VERIFIE" || rawStatus === "APPROUVEE" || rawStatus === "ACCEPTEE";
+    const hasActiveSub = !!activeSubscription && activeSubscription.statut === "ACTIF";
+
+    if (!isAdmin && (!isVerified || !hasActiveSub)) {
+      return (
+        <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
+          <div className="modal-container pro-create-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "520px", textAlign: "center", padding: "32px 24px" }}>
+            <div style={{
+              width: "56px",
+              height: "56px",
+              borderRadius: "50%",
+              background: "rgba(239, 68, 68, 0.1)",
+              color: "var(--color-danger, #ef4444)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 16px"
+            }}>
+              <IconLock size={28} />
+            </div>
+            <h3 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "8px" }}>
+              Publication non disponible
+            </h3>
+            <p style={{ color: "var(--color-text-muted, #64748b)", fontSize: "0.95rem", lineHeight: 1.5, marginBottom: "20px" }}>
+              {!isVerified
+                ? "Votre compte professionnel est actuellement en cours de vérification. Vous pourrez publier des offres dès que votre dossier aura été approuvé par notre équipe."
+                : "Un abonnement professionnel actif est requis pour créer et publier des offres de voyage."}
+            </p>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+              <button type="button" className="btn btn-outline" onClick={() => setShowCreateModal(false)}>
+                Fermer
+              </button>
+              {!hasActiveSub ? (
+                <Link to="/subscriptions" className="btn btn-primary" onClick={() => setShowCreateModal(false)}>
+                  <IconCreditCard size={16} />
+                  <span>Activer mon abonnement</span>
+                </Link>
+              ) : (
+                <Link to="/profile" className="btn btn-primary" onClick={() => setShowCreateModal(false)}>
+                  <span>Consulter mon dossier</span>
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    const nowMs = Date.now();
+    const recentPubs = myPubs
+      .filter((p) => {
+        const pubTime = new Date(p.date_creation).getTime();
+        return !isNaN(pubTime) && nowMs - pubTime <= sevenDaysMs;
+      })
+      .sort((a, b) => new Date(a.date_creation).getTime() - new Date(b.date_creation).getTime());
+
+    if (!isAdmin && recentPubs.length >= 2) {
+      const oldestInWindowMs = new Date(recentPubs[0].date_creation).getTime();
+      const nextDate = new Date(oldestInWindowMs + sevenDaysMs);
+      const nextAvailableDate = nextDate.toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      return (
+        <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
+          <div className="modal-container pro-create-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "520px", textAlign: "center", padding: "32px 24px" }}>
+            <div style={{
+              width: "56px",
+              height: "56px",
+              borderRadius: "50%",
+              background: "rgba(245, 158, 11, 0.1)",
+              color: "var(--color-warning, #f59e0b)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 16px"
+            }}>
+              <IconClock size={28} />
+            </div>
+            <h3 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "8px" }}>
+              Quota hebdomadaire atteint
+            </h3>
+            <p style={{ color: "var(--color-text-muted, #64748b)", fontSize: "0.95rem", lineHeight: 1.5, marginBottom: "20px" }}>
+              Vous avez déjà publié 2 offres au cours des 7 derniers jours. Selon les règles de la plateforme, le quota maximal est de 2 publications par semaine glissante.
+              {nextAvailableDate ? ` Vous pourrez à nouveau publier à partir du ${nextAvailableDate}.` : ""}
+            </p>
+            <button type="button" className="btn btn-primary" onClick={() => setShowCreateModal(false)}>
+              Compris
+            </button>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="modal-backdrop" onClick={() => !submittingOffer && setShowCreateModal(false)}>
@@ -700,20 +820,31 @@ export const DashboardPage: React.FC = () => {
             {/* Case 2 : Nombre d'agences et chiffre d'affaires */}
             <div className="admin-financial-card" id="admin-stat-agences">
               <div className="admin-financial-top">
-                <span className="admin-financial-label">Agences partenaires</span>
+                <span className="admin-financial-label">Professionnels / Agences</span>
                 <div className="admin-financial-icon-wrap">
                   <IconBuilding size={20} />
                 </div>
               </div>
               <div>
                 <div className="admin-financial-main-val">
-                  {financialStats.agences.total} agence{financialStats.agences.total > 1 ? "s" : ""}
+                  {financialStats.agences.total} professionnel{financialStats.agences.total > 1 ? "s" : ""}
                 </div>
-                <div className="admin-financial-sub">
-                  <span>Chiffre d'affaires :</span>
-                  <strong className="admin-financial-highlight">
-                    {formatFCFA(financialStats.agences.chiffreAffaires)}
-                  </strong>
+                <div className="admin-financial-sub" style={{ display: "flex", flexDirection: "column", gap: "3px", marginTop: "4px" }}>
+                  <span style={{ fontSize: "12px", color: "#64748b" }}>
+                    • En attente : <strong>{financialStats.agences.enAttente}</strong>
+                  </span>
+                  <span style={{ fontSize: "12px", color: "#16a34a" }}>
+                    • Actifs payeurs : <strong>{financialStats.agences.actifsPayeurs}</strong>
+                  </span>
+                  <span style={{ fontSize: "12px", color: "#64748b" }}>
+                    • Inactifs / non payeurs : <strong>{financialStats.agences.inactifsNonPayeurs}</strong>
+                  </span>
+                  <div style={{ marginTop: "4px", paddingTop: "4px", borderTop: "1px dashed #e2e8f0" }}>
+                    <span style={{ fontSize: "12px" }}>Chiffre d'affaires : </span>
+                    <strong className="admin-financial-highlight">
+                      {formatFCFA(financialStats.agences.chiffreAffaires)}
+                    </strong>
+                  </div>
                 </div>
               </div>
             </div>
@@ -730,11 +861,19 @@ export const DashboardPage: React.FC = () => {
                 <div className="admin-financial-main-val">
                   {financialStats.voyageurs.total} voyageur{financialStats.voyageurs.total > 1 ? "s" : ""}
                 </div>
-                <div className="admin-financial-sub">
-                  <span>Chiffre d'affaires :</span>
-                  <strong className="admin-financial-highlight">
-                    {formatFCFA(financialStats.voyageurs.chiffreAffaires)}
-                  </strong>
+                <div className="admin-financial-sub" style={{ display: "flex", flexDirection: "column", gap: "3px", marginTop: "4px" }}>
+                  <span style={{ fontSize: "12px", color: "#16a34a" }}>
+                    • Avec abonnement actif : <strong>{financialStats.voyageurs.actifsAbonnes}</strong>
+                  </span>
+                  <span style={{ fontSize: "12px", color: "#64748b" }}>
+                    • Sans abonnement actif : <strong>{financialStats.voyageurs.nonAbonnes}</strong>
+                  </span>
+                  <div style={{ marginTop: "4px", paddingTop: "4px", borderTop: "1px dashed #e2e8f0" }}>
+                    <span style={{ fontSize: "12px" }}>Chiffre d'affaires : </span>
+                    <strong className="admin-financial-highlight">
+                      {formatFCFA(financialStats.voyageurs.chiffreAffaires)}
+                    </strong>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1101,9 +1240,9 @@ export const DashboardPage: React.FC = () => {
     // Récupérer le commentaire éventuel de rejet de la vérification
     const verificationComment = verificationData?.verifications?.[0]?.commentaire || null;
 
-    let statusLabel = "EN ATTENTE";
+    let statusLabel = "EN COURS DE VÉRIFICATION";
     let statusPillClass = "status-pill status-en_attente";
-    let statusMessage = "Votre dossier est en cours de vérification.";
+    let statusMessage = "Votre dossier est en cours d'examen par notre équipe administrative.";
     let statusIcon = <IconClock size={14} />;
 
     if (isVerified) {
@@ -1112,9 +1251,9 @@ export const DashboardPage: React.FC = () => {
       statusMessage = "Votre profil professionnel est vérifié.";
       statusIcon = <IconShieldCheck size={14} />;
     } else if (isPending) {
-      statusLabel = "EN ATTENTE";
+      statusLabel = "EN COURS DE VÉRIFICATION";
       statusPillClass = "status-pill status-en_attente";
-      statusMessage = "Votre dossier est en cours de vérification.";
+      statusMessage = "Votre dossier est en cours d'examen par notre équipe administrative.";
       statusIcon = <IconClock size={14} />;
     } else if (isRejected) {
       statusLabel = "REFUSÉ";
@@ -1201,6 +1340,17 @@ export const DashboardPage: React.FC = () => {
           setPubFilter("EN_ATTENTE");
           document.getElementById("mes-publications-section")?.scrollIntoView({ behavior: "smooth" });
         },
+      });
+    }
+
+    if (isPending) {
+      aTraiterItems.push({
+        id: "verif-pending",
+        type: "warning",
+        titre: "Compte en cours de vérification",
+        description: "Votre dossier professionnel est en cours d'examen par notre équipe administrative.",
+        actionText: "Consulter mon dossier",
+        to: "/profile",
       });
     }
 
@@ -2038,91 +2188,134 @@ export const DashboardPage: React.FC = () => {
           )}
         </div>
 
-        {/* Statut d'abonnement discret si non abonné */}
-        {!activeSubscription && (
-          <div className="traveler-sub-banner">
-            <div className="traveler-sub-banner-text">
-              <IconLock size={18} />
-              <span>Débloquez toutes les offres et leurs détails.</span>
+        {/* Statut d'abonnement / Section principale */}
+        {!activeSubscription ? (
+          <div
+            className="traveler-locked-card"
+            style={{
+              background: "var(--color-surface, #ffffff)",
+              border: "1px solid var(--color-border, #e2e8f0)",
+              borderRadius: "16px",
+              padding: "48px 24px",
+              textAlign: "center",
+              maxWidth: "600px",
+              margin: "32px auto",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
+            }}
+          >
+            <div
+              style={{
+                width: "56px",
+                height: "56px",
+                borderRadius: "50%",
+                background: "rgba(16, 185, 129, 0.1)",
+                color: "var(--color-primary, #059669)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 16px",
+              }}
+            >
+              <IconLock size={28} />
             </div>
-            <Link to="/subscriptions" className="btn btn-primary btn-sm">
-              Voir les offres
+            <h2 style={{ fontSize: "1.3rem", fontWeight: 700, marginBottom: "8px", color: "var(--color-text, #1e293b)" }}>
+              Offres & opportunités réservées aux abonnés
+            </h2>
+            <p
+              style={{
+                color: "var(--color-text-muted, #64748b)",
+                fontSize: "0.95rem",
+                lineHeight: 1.6,
+                marginBottom: "24px",
+              }}
+            >
+              Pour consulter les circuits, séjours et opportunités exclusifs proposés par nos agences partenaires vérifiées, activez votre abonnement Voyageur.
+            </p>
+            <div style={{ marginBottom: "24px" }}>
+              <span style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--color-text, #1e293b)" }}>5 000 FCFA</span>
+              <span style={{ color: "var(--color-text-muted, #64748b)", fontSize: "0.9rem" }}> / mois</span>
+            </div>
+            <Link
+              to="/subscriptions"
+              className="btn btn-primary btn-lg"
+              id="traveler-activate-sub-btn"
+              style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
+            >
+              <IconCreditCard size={18} />
+              <span>Activer mon abonnement</span>
             </Link>
           </div>
-        )}
-
-        {/* 2. Section principale : Offres disponibles */}
-        <div className="traveler-offers-section">
-          <div className="traveler-section-header">
-            <h2 className="traveler-section-title">Offres disponibles</h2>
-            {publicPublications.length > 0 && (
-              <span className="traveler-offers-count">
-                {publicPublications.length} offre{publicPublications.length > 1 ? "s" : ""}
-              </span>
-            )}
-          </div>
-
-          {publicPublications.length === 0 ? (
-            <div className="traveler-empty-card">
-              <div className="empty-icon-wrap">
-                <IconFileText size={32} />
-              </div>
-              <h3 className="empty-title">Aucune offre disponible pour le moment</h3>
-              <p className="empty-desc">
-                Les agences vérifiées et nos partenaires publieront prochainement leurs offres et opportunités de voyage.
-              </p>
+        ) : (
+          /* 2. Section principale : Offres disponibles si abonné */
+          <div className="traveler-offers-section">
+            <div className="traveler-section-header">
+              <h2 className="traveler-section-title">Offres disponibles</h2>
+              {publicPublications.length > 0 && (
+                <span className="traveler-offers-count">
+                  {publicPublications.length} offre{publicPublications.length > 1 ? "s" : ""}
+                </span>
+              )}
             </div>
-          ) : (
-            <div className="traveler-offers-grid">
-              {publicPublications.map((pub) => {
-                const displayDate = pub.date_publication || pub.date_creation;
-                const formattedDate = displayDate
-                  ? new Date(displayDate).toLocaleDateString("fr-FR", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })
-                  : null;
 
-                const authorName = pub.professionnel?.nom_structure || "Sylla Voyage";
-                const parsed = parsePublicationContent(pub.contenu);
+            {publicPublications.length === 0 ? (
+              <div className="traveler-empty-card">
+                <div className="empty-icon-wrap">
+                  <IconFileText size={32} />
+                </div>
+                <h3 className="empty-title">Aucune offre disponible pour le moment</h3>
+                <p className="empty-desc">
+                  Les agences vérifiées et nos partenaires publieront prochainement leurs offres et opportunités de voyage.
+                </p>
+              </div>
+            ) : (
+              <div className="traveler-offers-grid">
+                {publicPublications.map((pub) => {
+                  const displayDate = pub.date_publication || pub.date_creation;
+                  const formattedDate = displayDate
+                    ? new Date(displayDate).toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })
+                    : null;
 
-                return (
-                  <article key={pub.id} className="traveler-offer-card" id={`offer-card-${pub.id}`}>
-                    {parsed.photoUrl && (
-                      <div className="traveler-offer-media">
-                        <img src={parsed.photoUrl} alt={pub.titre} className="traveler-offer-img" />
-                      </div>
-                    )}
+                  const authorName = pub.professionnel?.nom_structure || "Sylla Voyage";
+                  const parsed = parsePublicationContent(pub.contenu);
 
-                    <div className="offer-card-main">
-                      <div className="offer-card-top">
-                        <div className="offer-author-wrap">
-                          <span className="offer-author-name">
-                            <IconBuilding size={14} />
-                            <span>{authorName}</span>
-                          </span>
-                          <span className="offer-verified-badge">
-                            <IconShieldCheck size={12} />
-                            <span>Vérifié</span>
-                          </span>
+                  return (
+                    <article key={pub.id} className="traveler-offer-card" id={`offer-card-${pub.id}`}>
+                      {parsed.photoUrl && (
+                        <div className="traveler-offer-media">
+                          <img src={parsed.photoUrl} alt={pub.titre} className="traveler-offer-img" />
                         </div>
-                        {formattedDate && (
-                          <span className="offer-date">
-                            <IconCalendar size={13} />
-                            <span>{formattedDate}</span>
-                          </span>
-                        )}
+                      )}
+
+                      <div className="offer-card-main">
+                        <div className="offer-card-top">
+                          <div className="offer-author-wrap">
+                            <span className="offer-author-name">
+                              <IconBuilding size={14} />
+                              <span>{authorName}</span>
+                            </span>
+                            <span className="offer-verified-badge">
+                              <IconShieldCheck size={12} />
+                              <span>Vérifié</span>
+                            </span>
+                          </div>
+                          {formattedDate && (
+                            <span className="offer-date">
+                              <IconCalendar size={13} />
+                              <span>{formattedDate}</span>
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="offer-card-body">
+                          <h3 className="offer-title">{pub.titre}</h3>
+                          <p className="offer-preview">{parsed.text}</p>
+                        </div>
                       </div>
 
-                      <div className="offer-card-body">
-                        <h3 className="offer-title">{pub.titre}</h3>
-                        <p className="offer-preview">{parsed.text}</p>
-                      </div>
-                    </div>
-
-                    {/* Zone inférieure : Verrouillée si non abonné, accessible si abonné */}
-                    {activeSubscription ? (
                       <div className="offer-unlocked-footer">
                         <PublicationInteractions publicationId={pub.id} compact />
                         <Link to={`/publications/${pub.id}`} className="btn btn-outline btn-sm btn-block" style={{ marginTop: "10px" }}>
@@ -2130,23 +2323,13 @@ export const DashboardPage: React.FC = () => {
                           <IconArrowRight size={14} />
                         </Link>
                       </div>
-                    ) : (
-                      <div className="offer-locked-overlay">
-                        <div className="offer-locked-notice">
-                          <IconLock size={15} />
-                          <span>Contenu réservé aux abonnés</span>
-                        </div>
-                        <Link to="/subscriptions" className="btn btn-primary btn-sm btn-block">
-                          <span>Voir les offres</span>
-                        </Link>
-                      </div>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

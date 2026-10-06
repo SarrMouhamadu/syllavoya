@@ -1,16 +1,16 @@
 import { Router } from "express";
 import { publicationsController } from "./publications.controller.js";
-import { authenticate, optionalAuthenticate } from "../../middleware/authenticate.js";
+import { authenticate, requireActiveSubscription } from "../../middleware/authenticate.js";
 
 export const publicationsRoutes = Router();
 
-// Créer une publication (seuls les professionnels vérifiés)
+// Créer une publication (seuls les professionnels vérifiés et abonnés)
 publicationsRoutes.post("/", authenticate, (req, res, next) => {
   publicationsController.create(req, res, next);
 });
 
-// Consulter les publications publiques (approuvées)
-publicationsRoutes.get("/", (req, res, next) => {
+// Consulter les publications (accès réservé aux utilisateurs connectés avec abonnement actif ou admin)
+publicationsRoutes.get("/", authenticate, requireActiveSubscription, (req, res, next) => {
   publicationsController.listPublic(req, res, next);
 });
 
@@ -20,22 +20,22 @@ publicationsRoutes.get("/me", authenticate, (req, res, next) => {
 });
 
 // Consulter les interactions (likes, commentaires) d'une publication
-publicationsRoutes.get("/:id/interactions", optionalAuthenticate, (req, res, next) => {
+publicationsRoutes.get("/:id/interactions", authenticate, requireActiveSubscription, (req, res, next) => {
   publicationsController.getInteractions(req, res, next);
 });
 
-// Aimer / Retirer son like sur une publication (voyageurs, agences, admin)
-publicationsRoutes.post("/:id/like", authenticate, (req, res, next) => {
+// Aimer / Retirer son like sur une publication (voyageurs, agences, admin avec abonnement actif)
+publicationsRoutes.post("/:id/like", authenticate, requireActiveSubscription, (req, res, next) => {
   publicationsController.toggleLike(req, res, next);
 });
 
 // Ajouter un commentaire sur une publication
-publicationsRoutes.post("/:id/comments", authenticate, (req, res, next) => {
+publicationsRoutes.post("/:id/comments", authenticate, requireActiveSubscription, (req, res, next) => {
   publicationsController.addComment(req, res, next);
 });
 
-// Consulter une publication par ID
-publicationsRoutes.get("/:id", (req, res, next) => {
+// Consulter une publication par ID (accès réservé aux utilisateurs abonnés ou auteur/admin)
+publicationsRoutes.get("/:id", authenticate, requireActiveSubscription, (req, res, next) => {
   publicationsController.getById(req, res, next);
 });
 

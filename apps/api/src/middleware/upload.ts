@@ -39,6 +39,17 @@ const fileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
   const mime = (file.mimetype || "").toLowerCase();
 
+  const videoExtensions = [".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv", ".wmv", ".m4v", ".3gp"];
+  if (mime.startsWith("video/") || videoExtensions.includes(ext)) {
+    return cb(
+      new AppError(
+        "Les vidéos sont formellement refusées. Seules les photos (JPG, PNG) et documents PDF sont acceptés.",
+        400,
+        "INVALID_FILE_TYPE"
+      )
+    );
+  }
+
   if (!ALLOWED_EXTENSIONS.includes(ext) || !ALLOWED_MIME_TYPES.includes(mime)) {
     return cb(
       new AppError(

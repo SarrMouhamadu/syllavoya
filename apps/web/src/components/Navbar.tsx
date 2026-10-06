@@ -204,6 +204,10 @@ export const Navbar: React.FC = () => {
                       <div className="user-dropdown-name">{user.nom}</div>
                       <div className="user-dropdown-role">Compte Professionnel</div>
                     </div>
+                    <Link to="/dashboard" className="user-dropdown-item">
+                      <IconFileText size={16} />
+                      <span>Tableau de bord</span>
+                    </Link>
                     <Link to="/profile" className="user-dropdown-item">
                       <IconUser size={16} />
                       <span>Mon profil</span>
@@ -261,6 +265,10 @@ export const Navbar: React.FC = () => {
                       <div className="user-dropdown-name">{user.prenom} {user.nom}</div>
                       <div className="user-dropdown-role">Compte Voyageur</div>
                     </div>
+                    <Link to="/dashboard" className="user-dropdown-item">
+                      <IconFileText size={16} />
+                      <span>Tableau de bord</span>
+                    </Link>
                     <Link to="/profile" className="user-dropdown-item">
                       <IconUser size={16} />
                       <span>Mon profil</span>

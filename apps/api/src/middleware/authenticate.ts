@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { AppError } from "../errors/AppError.js";
 import { authService } from "../modules/auth/auth.service.js";
+import { subscriptionsService } from "../modules/subscriptions/subscriptions.service.js";
 
 export interface AuthUser {
   id: string;
@@ -100,5 +101,35 @@ export async function optionalAuthenticate(
     next();
   } catch {
     next();
+  }
+}
+
+export async function requireActiveSubscription(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      throw new AppError("Authentification requise", 401, "UNAUTHORIZED");
+    }
+
+    // L'administrateur de la plateforme conserve un accès complet
+    if (req.user.role === "ADMIN") {
+      return next();
+    }
+
+    const hasActiveSub = await subscriptionsService.hasActiveSubscription(req.user.id);
+    if (!hasActiveSub) {
+      throw new AppError(
+        "Un abonnement actif est requis pour accéder aux offres et publications.",
+        403,
+        "SUBSCRIPTION_REQUIRED"
+      );
+    }
+
+    next();
+  } catch (error) {
+    next(error);
   }
 }

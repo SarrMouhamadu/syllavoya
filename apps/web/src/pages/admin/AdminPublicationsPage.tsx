@@ -8,7 +8,7 @@ import {
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { EmptyState } from "../../components/EmptyState";
 import { Alert } from "../../components/Alert";
-import { IconCheck, IconX } from "../../components/Icons";
+import { IconCheck, IconX, IconTrash } from "../../components/Icons";
 import { parsePublicationContent } from "../../api/publications";
 
 export const AdminPublicationsPage: React.FC = () => {
@@ -16,6 +16,10 @@ export const AdminPublicationsPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Suppression d'une publication (confirmation avant suppression réelle)
+  const [deleteModalPub, setDeleteModalPub] = useState<AdminPublication | null>(null);
+  const [deletingPubId, setDeletingPubId] = useState<string | null>(null);
 
   // Filtre de statut : "EN_ATTENTE" par défaut pour afficher en priorité les publications à modérer
   const [statusFilter, setStatusFilter] = useState<string>("EN_ATTENTE");
@@ -102,6 +106,24 @@ export const AdminPublicationsPage: React.FC = () => {
       setSubmitError(err?.message || "Échec du traitement de la modération.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModalPub) return;
+    try {
+      setDeletingPubId(deleteModalPub.id);
+      setError(null);
+      const res = await adminApi.deletePublication(deleteModalPub.id);
+      if (res.success) {
+        setSuccessMessage(`La publication « ${deleteModalPub.titre} » a été supprimée définitivement de la base de données.`);
+        setDeleteModalPub(null);
+        await fetchPublications();
+      }
+    } catch (err: any) {
+      setError(err?.message || "Impossible de supprimer la publication.");
+    } finally {
+      setDeletingPubId(null);
     }
   };
 
@@ -507,6 +529,25 @@ export const AdminPublicationsPage: React.FC = () => {
                         <span>Rejeter</span>
                       </button>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={() => setDeleteModalPub(pub)}
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        backgroundColor: "#ffffff",
+                        borderColor: "#b91c1c",
+                        color: "#b91c1c",
+                        fontWeight: 600,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      id={`btn-delete-${pub.id}`}
+                    >
+                      <IconTrash size={14} />
+                      <span>Supprimer</span>
+                    </button>
                   </div>
                 </div>
 
@@ -786,6 +827,107 @@ export const AdminPublicationsPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modale de confirmation avant suppression définitive */}
+      {deleteModalPub && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.6)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "1rem",
+          }}
+          onClick={() => !deletingPubId && setDeleteModalPub(null)}
+        >
+          <div
+            style={{
+              backgroundColor: "#ffffff",
+              borderRadius: "16px",
+              maxWidth: "480px",
+              width: "100%",
+              padding: "2rem",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "1rem" }}>
+              <div
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "50%",
+                  backgroundColor: "#fee2e2",
+                  color: "#dc2626",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <IconTrash size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700, color: "#0f172a" }}>
+                  Confirmer la suppression
+                </h3>
+                <p style={{ margin: 0, fontSize: "13px", color: "#64748b" }}>
+                  Action irréversible réservée aux administrateurs
+                </p>
+              </div>
+            </div>
+
+            <p style={{ fontSize: "14px", color: "#334155", lineHeight: 1.6, marginBottom: "1.5rem" }}>
+              Êtes-vous sûr de vouloir supprimer définitivement la publication « <strong>{deleteModalPub.titre}</strong> » ?
+              Cette action est irréversible et supprimera réellement la publication en base de données.
+            </p>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setDeleteModalPub(null)}
+                disabled={Boolean(deletingPubId)}
+                id="btn-cancel-delete"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                style={{
+                  backgroundColor: "#dc2626",
+                  borderColor: "#dc2626",
+                  color: "#ffffff",
+                  fontWeight: 600,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+                onClick={handleConfirmDelete}
+                disabled={Boolean(deletingPubId)}
+                id="btn-confirm-delete"
+              >
+                {deletingPubId ? (
+                  <span>Suppression en cours...</span>
+                ) : (
+                  <>
+                    <IconTrash size={14} />
+                    <span>Confirmer la suppression</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

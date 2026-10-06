@@ -18,6 +18,7 @@ export interface CreateProfessionalAccountDTO {
 export interface TreatVerificationDTO {
   decision: "ACCEPTEE" | "REFUSEE" | "SUSPENDUE" | "REVOQUEE" | "APPROUVEE" | "REJETEE";
   commentaire?: string | null;
+  plan?: "MENSUEL" | "ANNUEL";
 }
 
 export interface TreatPublicationDTO {
@@ -81,7 +82,11 @@ export class AdminService {
     return results;
   }
 
-  async treatVerification(verificationId: string, data: TreatVerificationDTO): Promise<any> {
+  async treatVerification(
+    verificationId: string,
+    data: TreatVerificationDTO,
+    adminUserId: string = "ADMIN"
+  ): Promise<any> {
     const allowedDecisions = ["ACCEPTEE", "APPROUVEE", "REFUSEE", "REJETEE", "SUSPENDUE", "REVOQUEE"];
     if (!data.decision || !allowedDecisions.includes(data.decision)) {
       throw new AppError(
@@ -171,11 +176,97 @@ export class AdminService {
     if (newProStatus === "VERIFIE") {
       await db.orm.public.Utilisateur
         .where({ id: pro.utilisateur_id })
-        .update({ role: "PROFESSIONNEL" });
+        .update({ role: "PROFESSIONNEL", statut: "ACTIF" });
     } else if (newProStatus === "REVOQUE") {
       await db.orm.public.Utilisateur
         .where({ id: pro.utilisateur_id })
         .update({ role: "VOYAGEUR" });
+    }
+
+    let createdSubscription: any = null;
+    let createdPayment: any = null;
+
+    // LOT 2 : ACTIVATION ADMIN DU PROFESSIONNEL
+    // Si la décision est APPROUVEE :
+    // - enregistrer le plan choisi (Mensuel : 20 000 FCFA / Annuel : 200 000 FCFA)
+    // - enregistrer le montant réellement associé à cette activation
+    // - rendre l'abonnement actif selon la durée choisie
+    // - créer la donnée financière nécessaire (Paiement CONFIRME sans faux NabooPay)
+    // - enregistrer une trace/audit de l'action admin
+    if (normalizedDecision === "APPROUVEE") {
+      const planChosen = (data.plan && data.plan.toUpperCase() === "ANNUEL") ? "ANNUEL" : "MENSUEL";
+      const expectedPrice = planChosen === "ANNUEL" ? 200000 : 20000;
+      const durationDays = planChosen === "ANNUEL" ? 365 : 30;
+      const dateFin = now.add({ seconds: durationDays * 86400 });
+
+      // Recherche ou création garantie de la formule d'abonnement correspondante
+      let formule = await db.orm.public.FormuleAbonnement
+        .where({ type_utilisateur: "PROFESSIONNEL", duree: planChosen, statut: "ACTIF" })
+        .first();
+
+      if (!formule) {
+        const fallbackId = planChosen === "ANNUEL" ? "formule-professionnel-annuel" : "formule-professionnel-mensuel";
+        formule = await db.orm.public.FormuleAbonnement.where({ id: fallbackId }).first();
+      }
+
+      if (!formule) {
+        const fallbackId = planChosen === "ANNUEL" ? "formule-professionnel-annuel" : "formule-professionnel-mensuel";
+        const fallbackNom = planChosen === "ANNUEL" ? "Abonnement Professionnel Annuel" : "Abonnement Professionnel Mensuel";
+        formule = await db.orm.public.FormuleAbonnement.create({
+          id: fallbackId,
+          nom: fallbackNom,
+          prix: expectedPrice,
+          duree: planChosen,
+          type_utilisateur: "PROFESSIONNEL",
+          statut: "ACTIF",
+        });
+      }
+
+      // Création de l'abonnement actif
+      const subId = randomUUID();
+      createdSubscription = await db.orm.public.Abonnement.create({
+        id: subId,
+        utilisateur_id: pro.utilisateur_id,
+        formule_id: formule.id,
+        date_debut: now,
+        date_fin: dateFin,
+        statut: "ACTIF",
+      });
+
+      // Création de la donnée financière réelle (ACTIVATION_ADMIN)
+      const paymentRef = `ADMIN-ACT-${Date.now().toString(36).toUpperCase()}-${randomUUID().slice(0, 4).toUpperCase()}`;
+      createdPayment = await db.orm.public.Paiement.create({
+        id: randomUUID(),
+        abonnement_id: createdSubscription.id,
+        reference: paymentRef,
+        montant: expectedPrice,
+        statut: "CONFIRME",
+        moyen_paiement: "ACTIVATION_ADMIN",
+        date_creation: now,
+        date_confirmation: now,
+      });
+
+      // Audit log de l'activation administrative
+      await this.recordAuditLog(adminUserId, "ACTIVATION_PROFESSIONNEL_ADMIN", {
+        verification_id: verificationId,
+        professionnel_id: pro.id,
+        utilisateur_id: pro.utilisateur_id,
+        plan: planChosen,
+        montant: expectedPrice,
+        duree_jours: durationDays,
+        abonnement_id: createdSubscription.id,
+        reference_paiement: paymentRef,
+        date_debut: now.toString(),
+        date_fin: dateFin.toString(),
+      });
+    } else {
+      // Audit log de la décision non approbatrice
+      await this.recordAuditLog(adminUserId, `DECISION_VERIFICATION_${normalizedDecision}`, {
+        verification_id: verificationId,
+        professionnel_id: pro.id,
+        decision: normalizedDecision,
+        commentaire: data.commentaire || null,
+      });
     }
 
     const updatedVerification = await db.orm.public.Verification
@@ -199,6 +290,20 @@ export class AdminService {
         id: updatedPro.id,
         nom_structure: updatedPro.nom_structure,
         statut_verification: updatedPro.statut_verification,
+      } : null,
+      abonnement: createdSubscription ? {
+        id: createdSubscription.id,
+        formule_id: createdSubscription.formule_id,
+        date_debut: createdSubscription.date_debut.toString(),
+        date_fin: createdSubscription.date_fin.toString(),
+        statut: createdSubscription.statut,
+      } : null,
+      paiement: createdPayment ? {
+        id: createdPayment.id,
+        reference: createdPayment.reference,
+        montant: createdPayment.montant,
+        statut: createdPayment.statut,
+        moyen_paiement: createdPayment.moyen_paiement,
       } : null,
     };
   }
@@ -363,12 +468,72 @@ export class AdminService {
   }
 
   /**
+   * Supprimer définitivement une publication par l'administrateur.
+   * Suppression réelle en base avec nettoyage préalable des signalements associés
+   * et traçabilité obligatoire dans le journal d'audit.
+   */
+  async deletePublication(
+    publicationId: string,
+    adminUserId: string = "ADMIN"
+  ): Promise<{ success: boolean; message: string }> {
+    const pub = await db.orm.public.Publication
+      .where({ id: publicationId })
+      .first();
+
+    if (!pub) {
+      throw new AppError("Publication introuvable", 404, "PUBLICATION_NOT_FOUND");
+    }
+
+    // 1. Nettoyer les signalements rattachés à cette publication si présents
+    try {
+      await db.orm.public.Signalement
+        .where({ type_cible: "PUBLICATION", cible_id: publicationId })
+        .delete();
+    } catch (_) {}
+
+    // 2. Suppression réelle en base de données
+    await db.orm.public.Publication
+      .where({ id: publicationId })
+      .delete();
+
+    // 3. Traçabilité obligatoire dans AUDIT_LOG
+    await this.recordAuditLog(
+      adminUserId,
+      "SUPPRESSION_PUBLICATION_ADMIN",
+      {
+        publication_id: publicationId,
+        titre: pub.titre,
+        professionnel_id: pub.professionnel_id,
+      }
+    );
+
+    return {
+      success: true,
+      message: "Publication supprimée définitivement avec succès.",
+    };
+  }
+
+  /**
    * Enregistrer une action administrative dans AUDIT_LOG pour la traçabilité.
    */
-  async recordAuditLog(adminUserId: string, action: string, details?: unknown): Promise<any> {
+  async recordAuditLog(adminUserId?: string | null, action: string = "ACTION_ADMIN", details?: unknown): Promise<any> {
+    let validUserId: string | null = null;
+    if (adminUserId && adminUserId !== "ADMIN") {
+      const user = await db.orm.public.Utilisateur.where({ id: adminUserId }).first();
+      if (user) {
+        validUserId = user.id;
+      }
+    }
+    if (!validUserId) {
+      const firstAdmin = await db.orm.public.Utilisateur.where({ role: "ADMIN" }).first();
+      if (firstAdmin) {
+        validUserId = firstAdmin.id;
+      }
+    }
+
     const log = await db.orm.public.AuditLog.create({
       id: randomUUID(),
-      utilisateur_id: adminUserId,
+      utilisateur_id: validUserId,
       action,
       date: Temporal.Now.instant(),
       informations_complementaires: details ? JSON.stringify(details) : null,
@@ -536,10 +701,10 @@ export class AdminService {
     }
 
     const existingEmail = await db.orm.public.Utilisateur
-      .where({ email: normalizedEmail })
+      .where({ email: normalizedEmail, role: "PROFESSIONNEL" })
       .first();
     if (existingEmail) {
-      throw new AppError("Un compte avec cette adresse email existe déjà", 409, "EMAIL_ALREADY_EXISTS");
+      throw new AppError("Un compte professionnel avec cette adresse email existe déjà", 409, "EMAIL_ALREADY_EXISTS");
     }
 
     if (!data.telephone || typeof data.telephone !== "string" || !data.telephone.trim()) {
@@ -548,10 +713,10 @@ export class AdminService {
 
     const normalizedPhone = validateAndNormalizeSenegalPhone(data.telephone, { allowInternational: true });
     const existingPhone = await db.orm.public.Utilisateur
-      .where({ telephone: normalizedPhone })
+      .where({ telephone: normalizedPhone, role: "PROFESSIONNEL" })
       .first();
     if (existingPhone) {
-      throw new AppError("Un compte avec ce numéro de téléphone existe déjà", 409, "PHONE_ALREADY_EXISTS");
+      throw new AppError("Un compte professionnel avec ce numéro de téléphone existe déjà", 409, "PHONE_ALREADY_EXISTS");
     }
 
     if (!data.mot_de_passe || typeof data.mot_de_passe !== "string" || data.mot_de_passe.trim().length < 6) {
@@ -625,10 +790,15 @@ export class AdminService {
     chiffreAffairesTotal: number;
     agences: {
       total: number;
+      enAttente: number;
+      actifsPayeurs: number;
+      inactifsNonPayeurs: number;
       chiffreAffaires: number;
     };
     voyageurs: {
       total: number;
+      actifsAbonnes: number;
+      nonAbonnes: number;
       chiffreAffaires: number;
     };
   }> {
@@ -640,16 +810,60 @@ export class AdminService {
       db.orm.public.Paiement.all(),
     ]);
 
+    const nowEpoch = Temporal.Now.instant().epochMilliseconds;
+
+    // Métriques Professionnels / Agences
     const totalAgences = professionnels.length;
-    const totalVoyageurs = utilisateurs.filter(
-      (u) => (u.role || "").toUpperCase() === "VOYAGEUR"
+    const agencesEnAttente = professionnels.filter(
+      (p) => (p.statut_verification || "").toUpperCase() === "EN_ATTENTE"
     ).length;
 
+    // Utilisateurs avec abonnement actif et non expiré
+    const activeSubUserIds = new Set<string>();
+    for (const sub of abonnements) {
+      const isStatusActive = (sub.statut || "").toUpperCase() === "ACTIF";
+      let isNotExpired = false;
+      try {
+        const finEpoch = Temporal.Instant.from(sub.date_fin.toString()).epochMilliseconds;
+        isNotExpired = finEpoch > nowEpoch;
+      } catch {
+        isNotExpired = false;
+      }
+
+      if (isStatusActive && isNotExpired) {
+        activeSubUserIds.add(sub.utilisateur_id);
+      }
+    }
+
+    // Professionnels actifs payeurs : statut VÉRIFIÉ et abonnement actif non expiré
+    let agencesActifsPayeurs = 0;
+    for (const p of professionnels) {
+      if ((p.statut_verification || "").toUpperCase() === "VERIFIE" && activeSubUserIds.has(p.utilisateur_id)) {
+        agencesActifsPayeurs++;
+      }
+    }
+    const agencesInactifsNonPayeurs = Math.max(0, totalAgences - agencesActifsPayeurs);
+
+    // Métriques Voyageurs
+    const voyageursUsers = utilisateurs.filter(
+      (u) => (u.role || "").toUpperCase() === "VOYAGEUR"
+    );
+    const totalVoyageurs = voyageursUsers.length;
+    let voyageursActifsAbonnes = 0;
+    for (const v of voyageursUsers) {
+      if (activeSubUserIds.has(v.id)) {
+        voyageursActifsAbonnes++;
+      }
+    }
+    const voyageursNonAbonnes = Math.max(0, totalVoyageurs - voyageursActifsAbonnes);
+
+    // Cartographie des formules et abonnements pour l'attribution des revenus réels
     const formuleTypeMap = new Map<string, string>();
     for (const f of formules) {
       formuleTypeMap.set(f.id, (f.type_utilisateur || "").toUpperCase());
     }
 
+    const proUserIds = new Set(professionnels.map((p) => p.utilisateur_id));
     const userRoleMap = new Map<string, string>();
     for (const u of utilisateurs) {
       userRoleMap.set(u.id, (u.role || "").toUpperCase());
@@ -658,8 +872,10 @@ export class AdminService {
     const abonnementTypeMap = new Map<string, string>();
     for (const sub of abonnements) {
       const typeFromFormula = formuleTypeMap.get(sub.formule_id);
-      const typeFromUser = userRoleMap.get(sub.utilisateur_id);
-      abonnementTypeMap.set(sub.id, typeFromFormula || typeFromUser || "VOYAGEUR");
+      const isProUser = proUserIds.has(sub.utilisateur_id);
+      const userRole = userRoleMap.get(sub.utilisateur_id);
+      const subType = typeFromFormula || (isProUser ? "PROFESSIONNEL" : userRole || "VOYAGEUR");
+      abonnementTypeMap.set(sub.id, subType);
     }
 
     let caAgences = 0;
@@ -668,7 +884,7 @@ export class AdminService {
 
     for (const p of paiements) {
       const statut = (p.statut || "").toUpperCase();
-      if (statut === "CONFIRME") {
+      if (statut === "CONFIRME" || statut === "SUCCES" || statut === "VALIDE") {
         const montant = Number(p.montant) || 0;
         caTotal += montant;
 
@@ -685,10 +901,15 @@ export class AdminService {
       chiffreAffairesTotal: caTotal,
       agences: {
         total: totalAgences,
+        enAttente: agencesEnAttente,
+        actifsPayeurs: agencesActifsPayeurs,
+        inactifsNonPayeurs: agencesInactifsNonPayeurs,
         chiffreAffaires: caAgences,
       },
       voyageurs: {
         total: totalVoyageurs,
+        actifsAbonnes: voyageursActifsAbonnes,
+        nonAbonnes: voyageursNonAbonnes,
         chiffreAffaires: caVoyageurs,
       },
     };

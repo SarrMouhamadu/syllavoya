@@ -1,7 +1,10 @@
 import { Router } from "express";
 import { professionalsController } from "./professionals.controller.js";
 import { verificationController } from "../verification/verification.controller.js";
-import { authenticate } from "../../middleware/authenticate.js";
+import { authenticate, requireActiveSubscription } from "../../middleware/authenticate.js";
+import { db } from "../../db.js";
+import { subscriptionsService } from "../subscriptions/subscriptions.service.js";
+import { AppError } from "../../errors/AppError.js";
 
 export const professionalsRoutes = Router();
 
@@ -29,12 +32,33 @@ professionalsRoutes.get("/me/verification", authenticate, (req, res, next) => {
   verificationController.getMyVerificationState(req, res, next);
 });
 
-// 5. Consulter la liste des professionnels vérifiés (public)
-professionalsRoutes.get("/", (req, res, next) => {
+// 5. Consulter la liste des professionnels vérifiés (abonnés ou admin uniquement)
+professionalsRoutes.get("/", authenticate, requireActiveSubscription, (req, res, next) => {
   professionalsController.listVerified(req, res, next);
 });
 
-// 6. Consulter le détail d'un professionnel (vérifié ou propriétaire/admin)
-professionalsRoutes.get("/:id", (req, res, next) => {
-  professionalsController.getById(req, res, next);
+// 6. Consulter le détail d'un professionnel (vérifié ou propriétaire/admin avec abonnement actif)
+professionalsRoutes.get("/:id", authenticate, async (req, res, next) => {
+  try {
+    if (req.user?.role === "ADMIN") {
+      return professionalsController.getById(req, res, next);
+    }
+    const id = req.params["id"] as string;
+    const pro = await db.orm.public.Professionnel.where({ id }).first();
+    if (pro && pro.utilisateur_id === req.user?.id) {
+      return professionalsController.getById(req, res, next);
+    }
+    const hasActiveSub = await subscriptionsService.hasActiveSubscription(req.user!.id);
+    if (!hasActiveSub) {
+      throw new AppError(
+        "Un abonnement actif est requis pour consulter les coordonnées et fiches des professionnels.",
+        403,
+        "SUBSCRIPTION_REQUIRED"
+      );
+    }
+    return professionalsController.getById(req, res, next);
+  } catch (err) {
+    next(err);
+  }
 });
+

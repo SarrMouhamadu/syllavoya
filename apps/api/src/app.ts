@@ -18,20 +18,27 @@ const configuredOrigins = (config.frontendUrl || "")
   .map((url) => url.trim().replace(/\/$/, ""))
   .filter(Boolean);
 
-const allowedOrigins: string[] = [];
+// Ajouter systématiquement les domaines officiels de production
+const productionDomains = ["https://syllavoyage.com", "https://www.syllavoyage.com"];
+for (const prodDomain of productionDomains) {
+  if (!allowedOrigins.includes(prodDomain)) {
+    allowedOrigins.push(prodDomain);
+  }
+}
+
 for (const origin of configuredOrigins) {
   if (!allowedOrigins.includes(origin)) {
     allowedOrigins.push(origin);
   }
-  // Accepter automatiquement la variante www / apex si syllavoyage.com ou annonyme.pro est configuré
+  // Accepter automatiquement la variante www / apex si syllavoyage.com est configuré
   try {
     const parsed = new URL(origin);
-    if (parsed.hostname === "syllavoyage.com" || parsed.hostname === "annonyme.pro") {
+    if (parsed.hostname === "syllavoyage.com") {
       const wwwOrigin = `${parsed.protocol}//www.${parsed.hostname}${parsed.port ? `:${parsed.port}` : ""}`;
       if (!allowedOrigins.includes(wwwOrigin)) {
         allowedOrigins.push(wwwOrigin);
       }
-    } else if (parsed.hostname === "www.syllavoyage.com" || parsed.hostname === "www.annonyme.pro") {
+    } else if (parsed.hostname === "www.syllavoyage.com") {
       const apexHostname = parsed.hostname.replace(/^www\./, "");
       const apexOrigin = `${parsed.protocol}//${apexHostname}${parsed.port ? `:${parsed.port}` : ""}`;
       if (!allowedOrigins.includes(apexOrigin)) {

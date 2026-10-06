@@ -28,7 +28,7 @@ export function useSubscriptionAccess(): SubscriptionAccessResult {
         return;
       }
 
-      if (user.role === "ADMIN" || user.role === "PROFESSIONNEL") {
+      if (user.role === "ADMIN") {
         if (isMounted) {
           setHasActiveSub(true);
           setCheckingSub(false);

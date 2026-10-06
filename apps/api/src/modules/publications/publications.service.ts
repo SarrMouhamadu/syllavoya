@@ -48,6 +48,42 @@ export class PublicationsService {
     };
   }
 
+  /**
+   * Validation des médias d'une publication :
+   * - Les professionnels peuvent envoyer des PHOTOS (JPG, JPEG, PNG, WEBP).
+   * - Les VIDÉOS sont strictement refusées.
+   */
+  private validatePublicationMedia(contenu: string): void {
+    const videoPatterns = [
+      /data:video\//i,
+      /\[VIDEO:/i,
+      /\.(mp4|mov|avi|mkv|webm|flv|wmv|m4v|3gp)(\?|$|\]|\s)/i,
+    ];
+    for (const pattern of videoPatterns) {
+      if (pattern.test(contenu)) {
+        throw new AppError(
+          "Les vidéos sont formellement refusées. Seules les photos aux formats JPG, JPEG, PNG ou WEBP sont autorisées.",
+          400,
+          "INVALID_FILE_TYPE"
+        );
+      }
+    }
+
+    const photoMatch = contenu.match(/\[PHOTO:(data:[^\]]+)\]/i);
+    if (photoMatch) {
+      const mimeMatch = photoMatch[1].match(/^data:([^;]+);/i);
+      const mime = mimeMatch ? mimeMatch[1].toLowerCase() : "";
+      const allowedImageMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+      if (!allowedImageMimes.includes(mime)) {
+        throw new AppError(
+          "Format de photo non autorisé. Formats acceptés : JPG, JPEG, PNG, WEBP.",
+          400,
+          "INVALID_FILE_TYPE"
+        );
+      }
+    }
+  }
+
   async create(userId: string, data: CreatePublicationDTO, userRole?: string): Promise<PublicationResponse> {
     const isAdmin = userRole === "ADMIN";
     let pro = await db.orm.public.Professionnel
@@ -132,6 +168,8 @@ export class PublicationsService {
     if (!data.contenu || typeof data.contenu !== "string" || !data.contenu.trim()) {
       throw new AppError("Le contenu de la publication est obligatoire", 400, "VALIDATION_ERROR");
     }
+
+    this.validatePublicationMedia(data.contenu.trim());
 
     const now = Temporal.Now.instant();
     const id = randomUUID();
@@ -293,6 +331,7 @@ export class PublicationsService {
       if (typeof data.contenu !== "string" || !data.contenu.trim()) {
         throw new AppError("Le contenu de la publication ne peut pas être vide", 400, "VALIDATION_ERROR");
       }
+      this.validatePublicationMedia(data.contenu.trim());
       updateFields.contenu = data.contenu.trim();
     }
 
@@ -338,6 +377,12 @@ export class PublicationsService {
     if (!isAuthor && !isAdmin) {
       throw new AppError("Vous n'êtes pas autorisé à supprimer cette publication.", 403, "FORBIDDEN");
     }
+
+    try {
+      await db.orm.public.Signalement
+        .where({ type_cible: "PUBLICATION", cible_id: id })
+        .delete();
+    } catch (_) {}
 
     await db.orm.public.Publication
       .where({ id })

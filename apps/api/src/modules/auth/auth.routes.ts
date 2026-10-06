@@ -21,6 +21,10 @@ authRoutes.post("/login", (req, res, next) => {
   authController.login(req, res, next);
 });
 
+authRoutes.post("/forgot-password", (req, res, next) => {
+  authController.forgotPassword(req, res, next);
+});
+
 authRoutes.get("/me", authenticate, (req, res, next) => {
   authController.me(req, res, next);
 });
