@@ -69,7 +69,7 @@ fi
 echo ""
 echo "=========================================================="
 echo "   🟢 Lancement des services :"
-echo "   • Backend API  : http://localhost:3000"
+echo "   • Backend API  : http://localhost:3001"
 echo "   • Frontend Web : http://localhost:5173"
 echo "   (Appuyez sur Ctrl+C pour arrêter tous les serveurs)"
 echo "=========================================================="
