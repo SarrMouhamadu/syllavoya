@@ -7232,7 +7232,7 @@ body {
   align-items: center;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   /* Masquage du footer sombre sur mobile */
   .app-footer {
     display: none !important;
