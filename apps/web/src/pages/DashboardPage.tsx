@@ -879,8 +879,18 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 4 Blocs statistiques */}
+          {/* 5 Blocs statistiques */}
           <div className="admin-stat-grid">
+            <Link to="/admin/users" className="admin-stat-card">
+              <div className="admin-stat-card-top">
+                <span className="admin-stat-label">Utilisateurs & Agences</span>
+                <IconUser size={18} className="admin-stat-icon" />
+              </div>
+              <div className="admin-stat-action">
+                Gérer les comptes
+              </div>
+            </Link>
+
             <Link to="/admin/verifications" className="admin-stat-card">
               <div className="admin-stat-card-top">
                 <span className="admin-stat-label">Vérifications</span>

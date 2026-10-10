@@ -106,7 +106,7 @@ export class UsersService {
     }
 
     if (data.telephone !== undefined) {
-      updates.telephone = validateAndNormalizeSenegalPhone(data.telephone);
+      updates.telephone = data.telephone ? validateAndNormalizeSenegalPhone(data.telephone, { allowInternational: true }) : null;
     }
 
     if (data.email !== undefined) {

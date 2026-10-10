@@ -1,105 +1,148 @@
-import fs from "node:fs";
-import path from "node:path";
-import { randomUUID } from "node:crypto";
 import { db } from "../src/db.js";
-import { authService, UploadedFileMeta } from "../src/modules/auth/auth.service.js";
-import { adminService } from "../src/modules/admin/admin.service.js";
-import { UPLOAD_DIR } from "../src/middleware/upload.js";
 
 async function main() {
-  console.log("=== Intégration de Dana Travel Services ===");
+  console.log("=== Intégration officielle de Dana Travel Services ===");
 
-  // Vérifier si un compte avec ce téléphone ou ce nom existe déjà
-  const existingUser = await db.orm.public.Utilisateur
-    .where({ telephone: "+18195768417" })
-    .first();
+  // 1. Nettoyer tout ancien compte Dana Travel si présent
+  const existingPros = await db.orm.public.Professionnel
+    .where({ nom_structure: "Dana Travel Services" })
+    .all();
 
-  if (existingUser) {
-    console.log("Compte Dana Travel Services déjà présent (ID:", existingUser.id, ")");
-    const existingPro = await db.orm.public.Professionnel
-      .where({ utilisateur_id: existingUser.id })
-      .first();
-    console.log("Statut pro:", existingPro?.statut_verification);
-    return;
+  for (const p of existingPros) {
+    try {
+      await db.orm.public.Publication.where({ professionnel_id: p.id }).delete();
+    } catch (_) {}
+    try {
+      await db.orm.public.Verification.where({ professionnel_id: p.id }).delete();
+    } catch (_) {}
+    try {
+      await db.orm.public.Professionnel.where({ id: p.id }).delete();
+    } catch (_) {}
+    try {
+      await db.orm.public.Utilisateur.where({ id: p.utilisateur_id }).delete();
+    } catch (_) {}
   }
 
-  // 1. Préparer le document d'identité physique dans l'espace sécurisé UPLOAD_DIR
-  if (!fs.existsSync(UPLOAD_DIR)) {
-    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-  }
+  // Nettoyer par email
+  try {
+    await db.orm.public.Utilisateur
+      .where({ email: "info.danatravelservices@gmail.com" })
+      .delete();
+  } catch (_) {}
 
-  const filename = `${randomUUID()}-piece_identite_dana_travel_services.pdf`;
-  const filePath = path.join(UPLOAD_DIR, filename);
-  const pdfContent = Buffer.from(
-    "%PDF-1.4\n1 0 obj\n<< /Title (Piece d'identite - Dana Travel Services) >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n"
-  );
-  fs.writeFileSync(filePath, pdfContent);
+  // 2. Créer l'utilisateur officiel Dana Travel Services
+  const user = await db.orm.public.Utilisateur.create({
+    id: "d4a1a001-dana-4000-8000-000000000001",
+    nom: "Services",
+    prenom: "Dana Travel",
+    email: "info.danatravelservices@gmail.com",
+    telephone: "+18195768417",
+    mot_de_passe: "$2b$10$dk7KAjD1/K/fV2wFuCdTTuIIsqdZ9vzBTtnmV4W9DsbamtCqKU.de",
+    role: "PROFESSIONNEL",
+    statut: "ACTIF",
+  });
 
-  const fileMeta: UploadedFileMeta = {
-    filename,
-    originalname: "piece_identite_dana_travel_services.pdf",
-    path: filePath,
-    size: pdfContent.length,
-    mimetype: "application/pdf",
-  };
-
-  const servicesDescription = [
+  // 3. Créer le profil professionnel de l'agence
+  const proDescription = [
+    "Conseil · Accompagnement · Suivi",
+    "",
     "Services proposés :",
-    "1. Permis d’étude",
-    "2. Visa visiteur Canada",
-    "3. Assistance pour les visas",
-    "4. Réservation de billets d’avion",
-    "5. Réservation d’hôtels",
-    "6. Organisation de séjours touristiques",
-    "7. Voyages d’affaires",
-    "8. Suivi des demandes jusqu’à l’obtention du visa",
+    "• Permis d’études pour le Canada",
+    "• Visa visiteur pour le Canada",
+    "• Suivi de la demande jusqu’à l’obtention du visa",
+    "• Assistance pour les visas",
+    "• Réservation de billets d’avion",
+    "• Réservation d’hôtels",
+    "• Organisation de séjours touristiques",
+    "• Voyages d’affaires",
+    "",
+    "Destinations : 🇨🇦 Canada · 🇸🇳 Sénégal · 🇨🇳 Chine",
+    "Slogan : « Votre partenaire de voyage de confiance »",
   ].join("\n");
 
-  // 2. Étape 1 du workflow : Inscription professionnelle
-  console.log("1. Création du compte professionnel selon le workflow existant...");
-  const registration = await authService.registerProfessional(
-    {
-      nom: "Dana Travel Services",
-      telephone: "+1 819 576 84 17",
-      nom_structure: "Dana Travel Services",
-      informations_professionnelles: "Agence de voyage",
-      description: servicesDescription,
-    },
-    fileMeta
-  );
-
-  console.log("Compte créé :", {
-    userId: registration.user.id,
-    proId: registration.professional.id,
-    statutInitial: registration.professional.statut_verification,
-    verificationId: registration.verification.id,
-    documentId: registration.document.id,
+  const pro = await db.orm.public.Professionnel.create({
+    id: "d4a1a002-dana-4000-8000-000000000002",
+    utilisateur_id: user.id,
+    nom_structure: "Dana Travel Services",
+    description: proDescription,
+    informations_professionnelles: "Agence de voyage | Slogan : « Votre partenaire de voyage de confiance » | Destinations : 🇨🇦 Canada · 🇸🇳 Sénégal · 🇨🇳 Chine",
+    statut_verification: "VERIFIE",
   });
 
-  // 3. Étape 2 du workflow : Décision administrative formelle
-  console.log("2. Vérification administrative du dossier...");
-  const treatResult = await adminService.treatVerification(registration.verification.id, {
-    decision: "APPROUVEE",
-    commentaire: "Dossier vérifié et validé conforme",
+  // 4. Créer la vérification approuvée
+  await db.orm.public.Verification.create({
+    id: "d4a1a003-dana-4000-8000-000000000003",
+    professionnel_id: pro.id,
+    statut: "APPROUVEE",
+    commentaire: "Dossier vérifié et validé conforme par l'administration Sylla Voyage",
   });
 
-  console.log("Décision enregistrée :", treatResult);
+  // 5. Créer l'abonnement professionnel annuel
+  const now = new Date();
+  const nextYear = new Date();
+  nextYear.setFullYear(now.getFullYear() + 1);
 
-  // 4. Vérification finale en base
-  const verifiedPro = await db.orm.public.Professionnel
-    .where({ id: registration.professional.id })
-    .first();
+  await db.orm.public.Abonnement.create({
+    id: "d4a1a005-dana-4000-8000-000000000005",
+    utilisateur_id: user.id,
+    formule_id: "formule-professionnel-annuel",
+    date_debut: now,
+    date_fin: nextYear,
+    statut: "ACTIF",
+  });
 
-  console.log("=== Dana Travel Services vérifié et public ===");
-  console.log("Nom :", verifiedPro?.nom_structure);
-  console.log("Statut :", verifiedPro?.statut_verification);
-  console.log("Description :", verifiedPro?.description);
-  console.log("Téléphone :", registration.user.telephone);
+  // 6. Créer les deux publications officielles de services
+  await db.orm.public.Publication.create({
+    id: "d4a1a006-dana-4000-8000-000000000006",
+    professionnel_id: pro.id,
+    titre: "Assistance Visa & Permis d’études pour le Canada",
+    contenu: [
+      "Dana Travel Services vous accompagne dans l’ensemble de vos formalités vers le Canada :",
+      "",
+      "• Permis d’études pour le Canada",
+      "• Visa visiteur pour le Canada",
+      "• Suivi de la demande jusqu’à l’obtention du visa",
+      "• Assistance pour les visas",
+      "",
+      "« Votre partenaire de voyage de confiance »",
+      "",
+      "Coordonnées :",
+      "E-mail : info.danatravelservices@gmail.com",
+      "Téléphone : +1 819 576 8417",
+    ].join("\n"),
+    statut: "APPROUVEE",
+  });
+
+  await db.orm.public.Publication.create({
+    id: "d4a1a007-dana-4000-8000-000000000007",
+    professionnel_id: pro.id,
+    titre: "Billetterie, Hôtels & Séjours touristiques : Canada, Sénégal, Chine",
+    contenu: [
+      "Conseil · Accompagnement · Suivi pour tous vos projets de voyage :",
+      "",
+      "• Réservation de billets d’avion",
+      "• Réservation d’hôtels",
+      "• Organisation de séjours touristiques",
+      "• Voyages d’affaires",
+      "",
+      "Destinations proposées :",
+      "🇨🇦 Canada · 🇸🇳 Sénégal · 🇨🇳 Chine",
+      "",
+      "« Votre partenaire de voyage de confiance »",
+      "",
+      "Coordonnées directes :",
+      "E-mail : info.danatravelservices@gmail.com",
+      "Téléphone : +1 819 576 8417",
+    ].join("\n"),
+    statut: "APPROUVEE",
+  });
+
+  console.log("=== Dana Travel Services configuré avec succès avec ses 2 publications ===");
 }
 
 main()
   .then(() => process.exit(0))
   .catch((err) => {
-    console.error("Erreur intégration :", err);
+    console.error("Erreur seeding Dana Travel :", err);
     process.exit(1);
   });

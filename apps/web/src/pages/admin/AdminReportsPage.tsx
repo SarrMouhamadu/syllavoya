@@ -12,6 +12,7 @@ import {
   IconX,
   IconRefresh,
   IconScale,
+  IconUser,
 } from "../../components/Icons";
 
 export const AdminReportsPage: React.FC = () => {
@@ -154,6 +155,10 @@ export const AdminReportsPage: React.FC = () => {
 
         {/* Navigation Admin */}
         <div className="admin-nav-tabs">
+          <Link to="/admin/users" className="admin-tab-btn" id="tab-admin-users">
+            <IconUser size={16} />
+            <span>Utilisateurs & Agences</span>
+          </Link>
           <Link to="/admin/verifications" className="admin-tab-btn" id="tab-admin-verifications">
             <IconShieldCheck size={16} />
             <span>Vérifications</span>

@@ -914,6 +914,191 @@ export class AdminService {
       },
     };
   }
+
+  async listUsers(): Promise<any[]> {
+    const users = await db.orm.public.Utilisateur.all();
+    const pros = await db.orm.public.Professionnel.all();
+    const activeSubs = await db.orm.public.Abonnement
+      .where({ statut: "ACTIF" })
+      .all();
+
+    const proMap = new Map<string, any>();
+    for (const p of pros) {
+      proMap.set(p.utilisateur_id, p);
+    }
+
+    const subUserIds = new Set<string>();
+    for (const s of activeSubs) {
+      subUserIds.add(s.utilisateur_id);
+    }
+
+    const results = users.map((u) => {
+      const pro = proMap.get(u.id);
+      return {
+        id: u.id,
+        nom: u.nom,
+        prenom: u.prenom,
+        email: u.email,
+        telephone: u.telephone,
+        role: u.role,
+        statut: u.statut,
+        created_at: typeof u.created_at === "string" ? u.created_at : u.created_at.toString(),
+        professionnel: pro
+          ? {
+              id: pro.id,
+              nom_structure: pro.nom_structure,
+              description: pro.description,
+              informations_professionnelles: pro.informations_professionnelles,
+              statut_verification: pro.statut_verification,
+              created_at: typeof pro.created_at === "string" ? pro.created_at : pro.created_at.toString(),
+            }
+          : null,
+        hasActiveSubscription: subUserIds.has(u.id),
+      };
+    });
+
+    results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    return results;
+  }
+
+  async deleteUser(targetId: string, adminUserId: string): Promise<{ success: boolean; message: string }> {
+    let user = await db.orm.public.Utilisateur.where({ id: targetId }).first();
+    let pro = null;
+
+    if (!user) {
+      pro = await db.orm.public.Professionnel.where({ id: targetId }).first();
+      if (pro) {
+        user = await db.orm.public.Utilisateur.where({ id: pro.utilisateur_id }).first();
+      }
+    } else {
+      pro = await db.orm.public.Professionnel.where({ utilisateur_id: user.id }).first();
+    }
+
+    if (!user) {
+      throw new AppError("Utilisateur ou agence introuvable", 404, "USER_NOT_FOUND");
+    }
+
+    if (user.id === adminUserId) {
+      throw new AppError("Action interdite : vous ne pouvez pas supprimer votre propre compte administrateur.", 403, "CANNOT_DELETE_SELF");
+    }
+
+    const targetUserId = user.id;
+
+    // 1. Si le compte est associé à un profil professionnel, supprimer ses éléments dépendants
+    if (pro) {
+      const proId = pro.id;
+
+      try {
+        await db.orm.public.DocumentVerification.where({ professionnel_id: proId }).delete();
+      } catch (_) {}
+
+      try {
+        await db.orm.public.Verification.where({ professionnel_id: proId }).delete();
+      } catch (_) {}
+
+      try {
+        const pubs = await db.orm.public.Publication.where({ professionnel_id: proId }).all();
+        for (const pub of pubs) {
+          try {
+            await db.orm.public.Signalement.where({ type_cible: "PUBLICATION", cible_id: pub.id }).delete();
+          } catch (_) {}
+        }
+        await db.orm.public.Publication.where({ professionnel_id: proId }).delete();
+      } catch (_) {}
+
+      try {
+        const proConvs = await db.orm.public.Conversation.where({ professionnel_id: proId }).all();
+        for (const conv of proConvs) {
+          try {
+            await db.orm.public.DocumentEchange.where({ conversation_id: conv.id }).delete();
+          } catch (_) {}
+          try {
+            await db.orm.public.Message.where({ conversation_id: conv.id }).delete();
+          } catch (_) {}
+          try {
+            await db.orm.public.Conversation.where({ id: conv.id }).delete();
+          } catch (_) {}
+        }
+      } catch (_) {}
+
+      try {
+        await db.orm.public.Signalement.where({ type_cible: "PROFESSIONNEL", cible_id: proId }).delete();
+      } catch (_) {}
+    }
+
+    // 2. Nettoyer les conversations où l'utilisateur est le voyageur
+    try {
+      const userConvs = await db.orm.public.Conversation.where({ voyageur_id: targetUserId }).all();
+      for (const conv of userConvs) {
+        try {
+          await db.orm.public.DocumentEchange.where({ conversation_id: conv.id }).delete();
+        } catch (_) {}
+        try {
+          await db.orm.public.Message.where({ conversation_id: conv.id }).delete();
+        } catch (_) {}
+        try {
+          await db.orm.public.Conversation.where({ id: conv.id }).delete();
+        } catch (_) {}
+      }
+    } catch (_) {}
+
+    // 3. Nettoyer les messages orphelins restants envoyés par l'utilisateur
+    try {
+      await db.orm.public.Message.where({ expediteur_id: targetUserId }).delete();
+    } catch (_) {}
+
+    // 4. Nettoyer les documents d'échange restants envoyés par l'utilisateur
+    try {
+      await db.orm.public.DocumentEchange.where({ expediteur_id: targetUserId }).delete();
+    } catch (_) {}
+
+    // 5. Nettoyer les abonnements et leurs paiements
+    try {
+      const subs = await db.orm.public.Abonnement.where({ utilisateur_id: targetUserId }).all();
+      for (const sub of subs) {
+        try {
+          await db.orm.public.Paiement.where({ abonnement_id: sub.id }).delete();
+        } catch (_) {}
+        try {
+          await db.orm.public.Abonnement.where({ id: sub.id }).delete();
+        } catch (_) {}
+      }
+    } catch (_) {}
+
+    // 6. Nettoyer les signalements créés par ou ciblant cet utilisateur
+    try {
+      await db.orm.public.Signalement.where({ utilisateur_id: targetUserId }).delete();
+    } catch (_) {}
+    try {
+      await db.orm.public.Signalement.where({ type_cible: "UTILISATEUR", cible_id: targetUserId }).delete();
+    } catch (_) {}
+
+    // 7. Supprimer l'enregistrement Professionnel si présent
+    if (pro) {
+      try {
+        await db.orm.public.Professionnel.where({ id: pro.id }).delete();
+      } catch (_) {}
+    }
+
+    // 8. Supprimer définitivement l'utilisateur
+    await db.orm.public.Utilisateur.where({ id: targetUserId }).delete();
+
+    // 9. Enregistrer dans le journal d'audit
+    await this.recordAuditLog(adminUserId, "SUPPRESSION_UTILISATEUR_ADMIN", {
+      utilisateur_id: targetUserId,
+      email: user.email,
+      nom: user.nom,
+      prenom: user.prenom,
+      role: user.role,
+      nom_structure: pro?.nom_structure || null,
+    });
+
+    return {
+      success: true,
+      message: `Compte ${pro ? `de l'agence "${pro.nom_structure}"` : `de l'utilisateur "${user.prenom} ${user.nom}"`} supprimé définitivement avec succès.`,
+    };
+  }
 }
 
 export const adminService = new AdminService();

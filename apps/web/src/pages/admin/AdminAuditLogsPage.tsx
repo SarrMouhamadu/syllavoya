@@ -4,7 +4,7 @@ import { adminApi, type AdminAuditLog } from "../../api/admin";
 import { LoadingSpinner } from "../../components/LoadingSpinner";
 import { EmptyState } from "../../components/EmptyState";
 import { Alert } from "../../components/Alert";
-import { IconShieldCheck, IconFileText, IconFlag } from "../../components/Icons";
+import { IconShieldCheck, IconFileText, IconFlag, IconUser } from "../../components/Icons";
 
 export const AdminAuditLogsPage: React.FC = () => {
   const [logs, setLogs] = useState<AdminAuditLog[]>([]);
@@ -78,6 +78,10 @@ export const AdminAuditLogsPage: React.FC = () => {
 
         {/* Navigation Admin */}
         <div className="admin-nav-tabs">
+          <Link to="/admin/users" className="admin-tab-btn" id="tab-admin-users">
+            <IconUser size={16} />
+            <span>Utilisateurs & Agences</span>
+          </Link>
           <Link to="/admin/verifications" className="admin-tab-btn" id="tab-admin-verifications">
             <IconShieldCheck size={16} />
             <span>Vérifications</span>

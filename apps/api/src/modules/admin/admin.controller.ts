@@ -137,6 +137,29 @@ export class AdminController {
       next(error);
     }
   }
+
+  async listUsers(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const users = await adminService.listUsers();
+      res.status(200).json({
+        success: true,
+        data: { users },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteUser(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const adminUserId = req.user?.id || "ADMIN";
+      const id = req.params["id"] as string;
+      const result = await adminService.deleteUser(id, adminUserId);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const adminController = new AdminController();

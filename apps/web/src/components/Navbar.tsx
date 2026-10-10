@@ -112,6 +112,9 @@ export const Navbar: React.FC = () => {
                 <Link to="/dashboard" className="nav-link" id="nav-admin-dashboard">
                   Tableau de bord
                 </Link>
+                <Link to="/admin/users" className="nav-link" id="nav-admin-users">
+                  Utilisateurs & Agences
+                </Link>
                 <Link to="/publications" className="nav-link" id="nav-admin-offres">
                   Offres
                 </Link>
@@ -151,6 +154,10 @@ export const Navbar: React.FC = () => {
                     <Link to="/dashboard" className="user-dropdown-item">
                       <IconFileText size={16} />
                       <span>Tableau de bord</span>
+                    </Link>
+                    <Link to="/admin/users" className="user-dropdown-item">
+                      <IconUser size={16} />
+                      <span>Utilisateurs & Agences</span>
                     </Link>
                     <button
                       type="button"

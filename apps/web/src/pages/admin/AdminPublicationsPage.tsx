@@ -254,6 +254,13 @@ export const AdminPublicationsPage: React.FC = () => {
 
           <div style={{ display: "flex", gap: "8px" }}>
             <Link
+              to="/admin/users"
+              className="btn btn-secondary btn-sm"
+              style={{ textDecoration: "none" }}
+            >
+              Utilisateurs & Agences
+            </Link>
+            <Link
               to="/admin/verifications"
               className="btn btn-secondary btn-sm"
               style={{ textDecoration: "none" }}

@@ -28,6 +28,22 @@ const formatPhoneNumber = (phone: string | null | undefined): string => {
   return phone;
 };
 
+const parseServices = (text: string | null | undefined): string[] => {
+  if (!text) return [];
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const items: string[] = [];
+  for (const line of lines) {
+    if (/^services?\s*(proposés|offerts)?\s*:?$/i.test(line)) {
+      continue;
+    }
+    const cleaned = line.replace(/^(\d+[\.\)]\s*|[-•*]\s*)/, "").trim();
+    if (cleaned) {
+      items.push(cleaned);
+    }
+  }
+  return items;
+};
+
 export const ProfessionalDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
@@ -63,10 +79,10 @@ export const ProfessionalDetailPage: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
-    if (hasAccess) {
+    if (hasAccess || isAuthenticated) {
       fetchProfessional();
     }
-  }, [hasAccess, fetchProfessional]);
+  }, [hasAccess, isAuthenticated, fetchProfessional]);
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,8 +132,8 @@ export const ProfessionalDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* Verrouillage payant si non abonné */}
-        {!accessLoading && !hasAccess && (
+        {/* Verrouillage payant si non abonné et pas le propriétaire */}
+        {!accessLoading && !hasAccess && (!pro || !user || pro.utilisateur_id !== user.id) && (
           <LockedSubscriptionPaywall
             title="Fiche de l'agence réservée aux abonnés"
             subtitle="Pour consulter les informations détaillées, les coordonnées directes et contacter cette agence, un abonnement actif est requis."
@@ -130,15 +146,15 @@ export const ProfessionalDetailPage: React.FC = () => {
           />
         )}
 
-        {/* État de chargement des données si abonné */}
-        {!accessLoading && hasAccess && loading && (
+        {/* État de chargement des données */}
+        {!accessLoading && (hasAccess || (pro && user && pro.utilisateur_id === user.id)) && loading && (
           <div className="center-container">
             <LoadingSpinner message="Chargement de la fiche professionnelle..." size="large" />
           </div>
         )}
 
-        {/* État d'erreur si abonné */}
-        {!accessLoading && hasAccess && !loading && error && (
+        {/* État d'erreur */}
+        {!accessLoading && (hasAccess || (pro && user && pro.utilisateur_id === user.id)) && !loading && error && (
           <div className="state-container">
             <Alert type="error" message={error} />
             <Link to="/professionals" className="btn btn-outline" style={{ marginTop: "14px" }}>
@@ -147,8 +163,8 @@ export const ProfessionalDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* Fiche détaillée si abonné */}
-        {!accessLoading && hasAccess && !loading && !error && pro && (
+        {/* Fiche détaillée si abonné ou propriétaire */}
+        {!accessLoading && (hasAccess || (pro && user && pro.utilisateur_id === user.id)) && !loading && !error && pro && (
           <div className="pro-detail-layout">
             {/* Colonne informations de la structure */}
             <div className="pro-detail-card">
@@ -166,13 +182,72 @@ export const ProfessionalDetailPage: React.FC = () => {
               </div>
 
               <div className="pro-detail-sections">
-                <section className="detail-section">
-                  <h2 className="detail-section-title">Présentation</h2>
+                {/* Services & Prestations proposés par l'agence */}
+                <section className="detail-section" style={{ marginBottom: "1.75rem" }}>
+                  <h2 className="detail-section-title" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#0f172a" }}>
+                    <IconShieldCheck size={20} style={{ color: "#2563eb" }} />
+                    <span>Services & Prestations proposés</span>
+                  </h2>
+
                   {pro.description ? (
-                    <p className="detail-section-content">{pro.description}</p>
+                    (() => {
+                      const services = parseServices(pro.description);
+                      if (services.length > 0) {
+                        return (
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+                              gap: "10px",
+                              marginTop: "12px",
+                            }}
+                          >
+                            {services.map((srv, idx) => (
+                              <div
+                                key={idx}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "10px",
+                                  background: "#f8fafc",
+                                  border: "1px solid #e2e8f0",
+                                  borderRadius: "10px",
+                                  padding: "10px 14px",
+                                  fontSize: "14px",
+                                  fontWeight: 600,
+                                  color: "#0f172a",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: "22px",
+                                    height: "22px",
+                                    borderRadius: "50%",
+                                    background: "#dcfce7",
+                                    color: "#16a34a",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  <IconCheck size={13} />
+                                </div>
+                                <span>{srv}</span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+                      return (
+                        <p className="detail-section-content" style={{ whiteSpace: "pre-line", marginTop: "8px" }}>
+                          {pro.description}
+                        </p>
+                      );
+                    })()
                   ) : (
                     <p className="detail-section-content detail-content-empty">
-                      Aucune description renseignée pour cette structure.
+                      Cette agence n'a pas encore détaillé ses services sur sa vitrine.
                     </p>
                   )}
                 </section>

@@ -163,7 +163,44 @@ export const adminApi = {
   getFinancialStats: async (): Promise<{ success: boolean; data: AdminFinancialStats }> => {
     return apiFetch<{ success: boolean; data: AdminFinancialStats }>("/admin/stats");
   },
+
+  // Récupérer la liste des utilisateurs et agences
+  listUsers: async (): Promise<{ success: boolean; data: { users: AdminUserItem[] } }> => {
+    return apiFetch<{ success: boolean; data: { users: AdminUserItem[] } }>("/admin/users");
+  },
+
+  // Supprimer définitivement un utilisateur ou une agence
+  deleteUser: async (
+    userId: string
+  ): Promise<{ success: boolean; message: string }> => {
+    return apiFetch<{ success: boolean; message: string }>(
+      `/admin/users/${userId}`,
+      {
+        method: "DELETE",
+      }
+    );
+  },
 };
+
+export interface AdminUserItem {
+  id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone: string | null;
+  role: "VOYAGEUR" | "PROFESSIONNEL" | "ADMIN" | string;
+  statut: string;
+  created_at: string;
+  hasActiveSubscription?: boolean;
+  professionnel?: {
+    id: string;
+    nom_structure: string;
+    description: string | null;
+    informations_professionnelles: string | null;
+    statut_verification: string;
+    created_at: string;
+  } | null;
+}
 
 export interface AdminFinancialStats {
   chiffreAffairesTotal: number;

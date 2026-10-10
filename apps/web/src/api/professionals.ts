@@ -37,4 +37,22 @@ export const professionalsApi = {
       method: "GET",
     });
   },
+
+  getMe: async (): Promise<{ success: boolean; data: { professional: ApiProfessional } }> => {
+    return apiFetch<{ success: boolean; data: { professional: ApiProfessional } }>("/professionals/me", {
+      method: "GET",
+    });
+  },
+
+  updateMe: async (data: {
+    nom_structure?: string;
+    description?: string | null;
+    informations_professionnelles?: string | null;
+  }): Promise<{ success: boolean; data: { professional: ApiProfessional } }> => {
+    return apiFetch<{ success: boolean; data: { professional: ApiProfessional } }>("/professionals/me", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  },
 };
+

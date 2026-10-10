@@ -58,5 +58,15 @@ adminRoutes.get("/stats", (req, res, next) => {
   adminController.getFinancialStats(req, res, next);
 });
 
+// Consulter la liste de tous les utilisateurs et agences
+adminRoutes.get("/users", (req, res, next) => {
+  adminController.listUsers(req, res, next);
+});
+
+// Supprimer définitivement un utilisateur ou une agence par l'administrateur
+adminRoutes.delete("/users/:id", (req, res, next) => {
+  adminController.deleteUser(req, res, next);
+});
+
 
 

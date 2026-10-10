@@ -21,6 +21,7 @@ import { AdminReportsPage } from "./pages/admin/AdminReportsPage";
 import { AdminAuditLogsPage } from "./pages/admin/AdminAuditLogsPage";
 import { AdminVerificationsPage } from "./pages/admin/AdminVerificationsPage";
 import { AdminPublicationsPage } from "./pages/admin/AdminPublicationsPage";
+import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 
 
 export const App: React.FC = () => {
@@ -67,6 +68,14 @@ export const App: React.FC = () => {
               <ProtectedRoute>
                 <ProfilePage />
               </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <AdminRoute>
+                <AdminUsersPage />
+              </AdminRoute>
             }
           />
           <Route
