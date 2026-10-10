@@ -11,12 +11,14 @@ export interface PublicationInteractionsProps {
   publicationId: string;
   compact?: boolean;
   defaultExpandedComments?: boolean;
+  iosCounterOnly?: boolean;
 }
 
 export const PublicationInteractions: React.FC<PublicationInteractionsProps> = ({
   publicationId,
   compact = false,
   defaultExpandedComments = false,
+  iosCounterOnly = false,
 }) => {
   const { isAuthenticated } = useAuth();
 
@@ -108,6 +110,44 @@ export const PublicationInteractions: React.FC<PublicationInteractionsProps> = (
       setSubmittingComment(false);
     }
   };
+
+  if (iosCounterOnly) {
+    return (
+      <button
+        type="button"
+        className="ios-like-btn"
+        onClick={handleToggleLike}
+        title={userLiked ? "Je n'aime plus" : "J'aime"}
+        aria-label={userLiked ? "Je n'aime plus" : "J'aime"}
+        style={{
+          background: "none",
+          border: "none",
+          padding: 0,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "6px",
+          color: "#6E6E73",
+          fontSize: "15px",
+          cursor: "pointer",
+        }}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill={userLiked ? "#D70015" : "none"}
+          stroke="#D70015"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
+        </svg>
+        <span>{likesCount}</span>
+      </button>
+    );
+  }
 
   return (
     <div className={`pub-interactions-container ${compact ? "pub-interactions-compact" : ""}`}>

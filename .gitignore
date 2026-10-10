@@ -11,3 +11,8 @@ uploads/
 .claude/
 .cursor/
 .devin/
+
+# Mockups & archives
+*-html/
+*-html.zip
+*.zip

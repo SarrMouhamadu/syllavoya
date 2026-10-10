@@ -65,14 +65,26 @@
   --apple-bg: #F2F2F7;
   --apple-card: #FFFFFF;
   --apple-accent: #0A64D8;
+  --apple-accent-hover: #0852B2;
   --apple-verified: #1D7A3C;
+  --apple-verified-bg: #E8F5E9;
   --apple-heart: #D70015;
   --apple-text: #1C1C1E;
   --apple-secondary: #6E6E73;
   --apple-hairline: #E5E5EA;
+  --apple-separator: #F0F0F5;
+  --apple-border-input: #D1D1D6;
   --apple-search-bg: #E3E3E8;
   --apple-avatar-bg: #E8F1FD;
   --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  --apple-radius-card: 16px;
+  --apple-radius-btn: 14px;
+  --apple-radius-pill: 20px;
+  --apple-radius-search: 12px;
+  --apple-radius-avatar: 16px;
+  --apple-radius-avatar-lg: 21px;
+  --apple-btn-height: 50px;
+  --apple-tabbar-height: 83px;
 }
 
 /* Reset de base et anti-débordement horizontal */
@@ -7577,6 +7589,761 @@ body {
     align-items: center;
   }
 }
+
+/* ==========================================================================
+   APPLE MOBILE DESIGN SYSTEM — VUES CIBLES (Fiche, Offres, Chat, Abonnement)
+   ========================================================================== */
+
+/* Structure générale écran mobile Apple */
+.apple-screen-wrapper {
+  background-color: var(--apple-bg) !important;
+  min-height: 100vh;
+  font-family: var(--apple-font);
+  color: var(--apple-text);
+}
+
+@media (min-width: 768px) {
+  .ios-fiche-mobile {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .apple-screen-content {
+    padding: 24px 20px calc(var(--apple-tabbar-height) + env(safe-area-inset-bottom, 0px) + 24px);
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .apple-screen-content.has-fixed-cta {
+    padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px) + 24px);
+  }
+
+  .apple-screen-content.is-chat {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 20px);
+  }
+
+  /* 1. FICHE AGENCE (Fiche.dc.html) */
+  .pro-detail-page {
+    background-color: var(--apple-bg) !important;
+    min-height: 100vh;
+    padding-top: 0 !important;
+  }
+
+  .pro-detail-page .container {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .pro-detail-layout {
+    display: none !important;
+  }
+
+  .back-nav {
+    display: none !important;
+  }
+
+  .ios-fiche-mobile {
+    display: block;
+    padding: 20px 20px calc(80px + env(safe-area-inset-bottom, 0px));
+    max-width: 480px;
+    margin: 0 auto;
+    font-family: var(--apple-font);
+  }
+
+  .ios-fiche-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    color: var(--apple-accent);
+    font-size: 17px;
+    text-decoration: none;
+    margin: -6px 0 16px -6px;
+    font-weight: 400;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .ios-fiche-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  .ios-fiche-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--apple-radius-avatar-lg);
+    background-color: var(--apple-avatar-bg);
+    color: var(--apple-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .ios-fiche-identity {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .ios-fiche-name {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--apple-text);
+    margin: 0 0 4px;
+    line-height: 1.25;
+    word-break: break-word;
+  }
+
+  .ios-fiche-verified {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--apple-verified);
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .ios-fiche-section-label {
+    font-size: 13px;
+    color: var(--apple-secondary);
+    margin: 0 0 8px 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    font-weight: 500;
+  }
+
+  .ios-fiche-services-card {
+    background: #ffffff;
+    border-radius: var(--apple-radius-card);
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    margin-bottom: 16px;
+  }
+
+  .ios-fiche-service-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 16px;
+    font-size: 16px;
+    color: var(--apple-text);
+    line-height: 1.35;
+  }
+
+  .ios-fiche-service-row:not(:first-child) {
+    border-top: 1px solid var(--apple-separator);
+  }
+
+  .ios-fiche-service-icon {
+    color: var(--apple-accent);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .ios-fiche-contact-card {
+    background: #ffffff;
+    border-radius: var(--apple-radius-card);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 16px;
+    color: var(--apple-text);
+    text-decoration: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    margin-bottom: 24px;
+  }
+
+  .ios-fiche-contact-icon {
+    color: var(--apple-accent);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Barre CTA fixe en bas sur mobile */
+  .ios-fixed-cta-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+    background: rgba(242, 242, 247, 0.94);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border-top: 0.5px solid var(--apple-hairline);
+    z-index: 990;
+    display: flex;
+    justify-content: center;
+  }
+
+  .ios-fixed-cta-inner {
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .ios-btn-cta {
+    width: 100%;
+    height: var(--apple-btn-height);
+    border: 0;
+    border-radius: var(--apple-radius-btn);
+    background-color: var(--apple-accent);
+    color: #ffffff;
+    font-family: var(--apple-font);
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+    box-shadow: 0 2px 8px rgba(10, 100, 216, 0.25);
+  }
+
+  .ios-btn-cta:active {
+    background-color: var(--apple-accent-hover);
+    transform: scale(0.99);
+  }
+
+  .ios-btn-cta:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  /* Modal / Bottom Sheet de premier contact sur mobile */
+  .ios-sheet-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .ios-sheet-body {
+    background: #ffffff;
+    width: 100%;
+    max-width: 500px;
+    border-radius: 20px 20px 0 0;
+    padding: 20px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    animation: slideUp 0.25s ease;
+  }
+
+  .ios-sheet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .ios-sheet-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--apple-text);
+    margin: 0;
+  }
+
+  .ios-sheet-close {
+    background: none;
+    border: none;
+    color: var(--apple-secondary);
+    font-size: 15px;
+    cursor: pointer;
+    padding: 6px;
+  }
+
+  .ios-sheet-textarea {
+    width: 100%;
+    height: 110px;
+    border: 1px solid var(--apple-border-input);
+    border-radius: 12px;
+    padding: 12px;
+    font-family: var(--apple-font);
+    font-size: 16px;
+    color: var(--apple-text);
+    resize: none;
+    outline: none;
+    margin-bottom: 14px;
+  }
+
+  .ios-sheet-textarea:focus {
+    border-color: var(--apple-accent);
+  }
+
+  /* 2. OFFRES (Offres.dc.html) */
+  .publications-page {
+    background-color: var(--apple-bg) !important;
+    min-height: 100vh;
+    padding-top: 0 !important;
+  }
+
+  .publications-page .container {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .ios-offres-mobile {
+    padding: 24px 20px calc(var(--apple-tabbar-height) + env(safe-area-inset-bottom, 0px) + 20px);
+    max-width: 480px;
+    margin: 0 auto;
+    font-family: var(--apple-font);
+  }
+
+  .ios-offres-title {
+    font-size: 34px;
+    line-height: 40px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    color: var(--apple-text);
+    margin: 0 0 16px;
+  }
+
+  .ios-offre-card {
+    background: #ffffff;
+    border-radius: var(--apple-radius-card);
+    padding: 16px;
+    margin-bottom: 12px;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    transition: background-color 0.15s ease, transform 0.1s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .ios-offre-card:active {
+    background-color: #F8F8FA;
+    transform: scale(0.99);
+  }
+
+  .ios-offre-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: var(--apple-secondary);
+    margin-bottom: 8px;
+  }
+
+  .ios-offre-author {
+    font-weight: 500;
+    color: var(--apple-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 65%;
+  }
+
+  .ios-offre-date {
+    color: var(--apple-secondary);
+    flex-shrink: 0;
+  }
+
+  .ios-offre-title {
+    font-size: 19px;
+    font-weight: 600;
+    line-height: 24px;
+    color: var(--apple-text);
+    margin: 0 0 6px;
+  }
+
+  .ios-offre-snippet {
+    font-size: 15px;
+    line-height: 21px;
+    color: var(--apple-secondary);
+    margin: 0 0 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .ios-offre-footer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 15px;
+    color: var(--apple-secondary);
+  }
+
+  .ios-offre-like-icon {
+    color: var(--apple-heart);
+    display: flex;
+    align-items: center;
+  }
+
+  .ios-offre-like-count {
+    font-size: 15px;
+    color: var(--apple-secondary);
+  }
+
+  .ios-offre-chevron {
+    margin-left: auto;
+    color: #8E8E93;
+    display: flex;
+    align-items: center;
+  }
+
+  /* 3. CONVERSATION (Conversation.dc.html) */
+  .conversation-detail-page {
+    background-color: var(--apple-bg) !important;
+    min-height: 100vh;
+    padding-top: 0 !important;
+  }
+
+  .conversation-detail-page .container {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .ios-chat-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: var(--apple-bg);
+    font-family: var(--apple-font);
+    position: relative;
+  }
+
+  .ios-chat-header {
+    position: sticky;
+    top: 0;
+    background: rgba(242, 242, 247, 0.94);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border-bottom: 0.5px solid var(--apple-hairline);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    z-index: 90;
+  }
+
+  .ios-chat-back {
+    color: var(--apple-accent);
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    text-decoration: none;
+    font-size: 17px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  .ios-chat-header-center {
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+    transform: translateX(-16px);
+  }
+
+  .ios-chat-partner-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--apple-text);
+    line-height: 1.2;
+  }
+
+  .ios-chat-partner-verified {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--apple-verified);
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 2px;
+  }
+
+  .ios-chat-messages {
+    flex: 1;
+    padding: 20px 16px calc(70px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+  }
+
+  .ios-msg-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ios-msg-group.is-mine {
+    align-items: flex-end;
+  }
+
+  .ios-msg-group.is-theirs {
+    align-items: flex-start;
+  }
+
+  .ios-bubble {
+    max-width: 270px;
+    padding: 10px 14px;
+    font-size: 17px;
+    line-height: 22px;
+    word-break: break-word;
+  }
+
+  .ios-bubble.is-mine {
+    background-color: var(--apple-accent);
+    color: #ffffff;
+    border-radius: 20px 20px 6px 20px;
+  }
+
+  .ios-bubble.is-theirs {
+    background-color: #E5E5EA;
+    color: var(--apple-text);
+    border-radius: 20px 20px 20px 6px;
+  }
+
+  .ios-msg-time {
+    font-size: 12px;
+    color: var(--apple-secondary);
+    margin: 4px 6px 0;
+  }
+
+  /* Barre de saisie fixée en bas */
+  .ios-chat-input-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: rgba(242, 242, 247, 0.94);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border-top: 0.5px solid var(--apple-hairline);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 100;
+  }
+
+  .ios-chat-attachment-btn {
+    color: var(--apple-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    flex-shrink: 0;
+  }
+
+  .ios-chat-input {
+    flex: 1;
+    height: 40px;
+    border-radius: 20px;
+    background: #ffffff;
+    border: 1px solid var(--apple-border-input);
+    box-sizing: border-box;
+    padding: 0 14px;
+    color: var(--apple-text);
+    font-family: var(--apple-font);
+    font-size: 17px;
+    outline: none;
+  }
+
+  .ios-chat-input::placeholder {
+    color: var(--apple-secondary);
+  }
+
+  .ios-chat-send-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 20px;
+    border: 0;
+    background-color: var(--apple-accent);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.1s ease;
+  }
+
+  .ios-chat-send-btn:active {
+    transform: scale(0.95);
+  }
+
+  .ios-chat-send-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  /* 4. ABONNEMENT (Abonnement.dc.html & Paywall) */
+  .subscriptions-page {
+    background-color: var(--apple-bg) !important;
+    min-height: 100vh;
+    padding-top: 0 !important;
+  }
+
+  .subscriptions-page .container {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .ios-sub-mobile {
+    padding: 24px 20px calc(80px + env(safe-area-inset-bottom, 0px));
+    max-width: 480px;
+    margin: 0 auto;
+    font-family: var(--apple-font);
+  }
+
+  .ios-sub-icon-wrap {
+    width: 72px;
+    height: 72px;
+    border-radius: 36px;
+    background-color: var(--apple-avatar-bg);
+    color: var(--apple-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 20px auto 0;
+  }
+
+  .ios-sub-title {
+    margin: 20px 0 6px;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--apple-text);
+    text-align: center;
+  }
+
+  .ios-sub-subtitle {
+    font-size: 16px;
+    color: var(--apple-secondary);
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  .ios-sub-card {
+    background: #ffffff;
+    border-radius: var(--apple-radius-card);
+    padding: 6px 20px 20px;
+    margin-top: 24px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  }
+
+  .ios-sub-perk-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 16px;
+    margin-top: 14px;
+    color: var(--apple-text);
+    line-height: 1.35;
+  }
+
+  .ios-sub-perk-icon {
+    color: var(--apple-accent);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .ios-sub-price-block {
+    text-align: center;
+    margin-top: 28px;
+    margin-bottom: 24px;
+  }
+
+  .ios-sub-price-amount {
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--apple-text);
+  }
+
+  .ios-sub-price-unit {
+    font-size: 17px;
+    color: var(--apple-secondary);
+  }
+
+  .ios-sub-price-note {
+    font-size: 14px;
+    color: var(--apple-secondary);
+    margin-top: 4px;
+  }
+
+  .ios-sub-bottom-bar {
+    position: fixed;
+    left: 20px;
+    right: 20px;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    max-width: 440px;
+    margin: 0 auto;
+    z-index: 100;
+  }
+
+  .ios-sub-cta-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 50px;
+    border: 0;
+    border-radius: 14px;
+    background-color: var(--apple-accent);
+    color: #ffffff;
+    font: 600 17px var(--apple-font);
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: 0 4px 12px rgba(10, 100, 216, 0.25);
+    transition: transform 0.1s ease;
+  }
+
+  .ios-sub-cta-btn:active {
+    transform: scale(0.98);
+  }
+}
+
+@media (min-width: 768px) {
+  .ios-fiche-mobile,
+  .ios-offres-mobile,
+  .ios-chat-container,
+  .ios-sub-mobile {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .publications-page .pub-grid,
+  .publications-page .page-header,
+  .chat-page .chat-card,
+  .chat-page .back-nav,
+  .subscription-paywall-wrap .subscription-paywall-card,
+  .subscriptions-page .subs-hero,
+  .subscriptions-page .subs-role-tabs,
+  .subscriptions-page .subs-plans-grid {
+    display: none !important;
+  }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 
 
 

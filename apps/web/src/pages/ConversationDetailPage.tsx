@@ -23,6 +23,7 @@ import {
   IconX,
   IconPaperclip,
   IconImage,
+  IconArrowUp,
 } from "../components/Icons";
 
 export const ConversationDetailPage: React.FC = () => {
@@ -789,6 +790,172 @@ export const ConversationDetailPage: React.FC = () => {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Vue Mobile iOS fidèle à Conversation.dc.html */}
+        {!loading && !error && conversation && (
+          <div className="ios-chat-container">
+            {/* Header sticky iOS */}
+            <header className="ios-chat-header">
+              <Link to="/messages" className="ios-chat-back" aria-label="Retour aux messages">
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m15 6-6 6 6 6" />
+                </svg>
+              </Link>
+              <div className="ios-chat-header-center">
+                <div className="ios-chat-partner-name">{interlocuteurNom}</div>
+                <span className="ios-chat-partner-verified">
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#1D7A3C"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />
+                    <path d="m9 12 2 2 4-4" />
+                  </svg>
+                  <span>Vérifié</span>
+                </span>
+              </div>
+            </header>
+
+            {/* Flux de messages iOS */}
+            <div className="ios-chat-messages">
+              {messages.length === 0 ? (
+                <div style={{ textAlign: "center", color: "#6E6E73", padding: "40px 20px" }}>
+                  {proBloqueSansPremierMessage
+                    ? "En attente du premier message du voyageur..."
+                    : "Aucun message pour le moment. Écrivez ci-dessous pour commencer."}
+                </div>
+              ) : (
+                messages.map((msg) => {
+                  const isMe = msg.est_mon_message ?? msg.expediteur_id === user?.id;
+                  const timeStr = msg.date_envoi
+                    ? new Date(msg.date_envoi).toLocaleTimeString("fr-FR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "";
+
+                  // Détection pièce jointe
+                  let textContent = msg.contenu;
+                  const match = msg.contenu.match(/\[(?:Fichier joint|Pièce jointe)\s*:\s*([^\]]+)\]/);
+                  if (match) {
+                    textContent = msg.contenu.replace(match[0], "").trim();
+                  }
+
+                  return (
+                    <div
+                      key={`ios-msg-${msg.id}`}
+                      className={`ios-msg-group ${isMe ? "is-mine" : "is-theirs"}`}
+                    >
+                      <div className={`ios-bubble ${isMe ? "is-mine" : "is-theirs"}`}>
+                        {textContent || msg.contenu}
+                      </div>
+                      {timeStr && <div className="ios-msg-time">{timeStr}</div>}
+                    </div>
+                  );
+                })
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Aperçu de la pièce jointe si sélectionnée */}
+            {attachedFile && (
+              <div
+                style={{
+                  position: "fixed",
+                  bottom: "60px",
+                  left: "16px",
+                  right: "16px",
+                  background: "#fff",
+                  borderRadius: "12px",
+                  padding: "8px 12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                  zIndex: 95,
+                }}
+              >
+                <span style={{ fontSize: "14px", color: "#1C1C1E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  📎 {attachedFile.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleRemoveAttachment}
+                  style={{ background: "none", border: "none", color: "#6E6E73", cursor: "pointer", padding: "4px" }}
+                >
+                  <IconX size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* Barre de saisie fixée en bas fidèle à Conversation.dc.html */}
+            <form onSubmit={handleSendMessage} className="ios-chat-input-bar">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+                style={{ display: "none" }}
+              />
+              <button
+                type="button"
+                className="ios-chat-attachment-btn"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={envoiEnCours || proBloqueSansPremierMessage}
+                aria-label="Joindre un fichier"
+              >
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m20 11-8.5 8.5a5 5 0 0 1-7-7L13 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L14 7" />
+                </svg>
+              </button>
+
+              <input
+                type="text"
+                className="ios-chat-input"
+                placeholder={proBloqueSansPremierMessage ? "En attente du premier message..." : "Message"}
+                value={nouveauMessage}
+                onChange={(e) => setNouveauMessage(e.target.value)}
+                disabled={envoiEnCours || proBloqueSansPremierMessage}
+              />
+
+              <button
+                type="submit"
+                className="ios-chat-send-btn"
+                disabled={envoiEnCours || proBloqueSansPremierMessage || (!nouveauMessage.trim() && !attachedFile)}
+                aria-label="Envoyer"
+              >
+                <IconArrowUp size={20} color="#fff" strokeWidth={2.2} />
+              </button>
+            </form>
           </div>
         )}
       </div>

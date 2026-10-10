@@ -100,6 +100,95 @@ export const LockedSubscriptionPaywall: React.FC<LockedSubscriptionPaywallProps>
           </div>
         </div>
       </div>
+
+      {/* Vue Mobile iOS fidèle à Abonnement.dc.html */}
+      <div className="ios-sub-mobile">
+        <div className="ios-sub-icon-wrap">
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+          </svg>
+        </div>
+
+        <h1 className="ios-sub-title">Débloquez l’annuaire</h1>
+        <div className="ios-sub-subtitle">Accès réservé aux membres</div>
+
+        <div className="ios-sub-card">
+          <div className="ios-sub-perk-row">
+            <span className="ios-sub-perk-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A64D8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m5 12 5 5 9-10" />
+              </svg>
+            </span>
+            <span>Annuaire complet des agences</span>
+          </div>
+
+          <div className="ios-sub-perk-row">
+            <span className="ios-sub-perk-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A64D8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m5 12 5 5 9-10" />
+              </svg>
+            </span>
+            <span>Coordonnées et fiches détaillées</span>
+          </div>
+
+          <div className="ios-sub-perk-row">
+            <span className="ios-sub-perk-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A64D8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m5 12 5 5 9-10" />
+              </svg>
+            </span>
+            <span>Messagerie directe et devis</span>
+          </div>
+
+          <div className="ios-sub-perk-row">
+            <span className="ios-sub-perk-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A64D8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m5 12 5 5 9-10" />
+              </svg>
+            </span>
+            <span>Offres de voyage vérifiées</span>
+          </div>
+        </div>
+
+        <div className="ios-sub-price-block">
+          <span className="ios-sub-price-amount">5 000</span>
+          <span className="ios-sub-price-unit"> FCFA / mois</span>
+          <div className="ios-sub-price-note">Wave ou Orange Money</div>
+        </div>
+
+        <div className="ios-sub-bottom-bar">
+          {isAuthenticated ? (
+            <Link
+              to="/subscriptions"
+              state={{ from: location }}
+              className="ios-sub-cta-btn"
+              id="ios-paywall-subscribe-btn"
+            >
+              Activer l’abonnement
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              state={{ from: location }}
+              className="ios-sub-cta-btn"
+              id="ios-paywall-login-btn"
+            >
+              Activer l’abonnement
+            </Link>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

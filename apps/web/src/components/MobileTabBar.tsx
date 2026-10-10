@@ -2,7 +2,7 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
-  IconCompass,
+  IconSearch,
   IconFileText,
   IconMessage,
   IconUser,
@@ -11,20 +11,16 @@ import {
 } from "./Icons";
 
 export const MobileTabBar: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
   const pathname = location.pathname;
 
-  // Pas de barre d'onglets pour les visiteurs non connectés
-  if (!isAuthenticated || !user) {
-    return null;
-  }
-
-  // Masquer sur les écrans poussés (détails) qui ont leur propre bouton retour
+  // Masquer sur les écrans poussés (détails & abonnement) qui ont leur propre bouton d'action ou retour
   const isPushedScreen =
     /^\/professionals\/[a-zA-Z0-9_-]+$/.test(pathname) ||
     /^\/publications\/[a-zA-Z0-9_-]+$/.test(pathname) ||
-    /^\/messages\/[a-zA-Z0-9_-]+$/.test(pathname);
+    /^\/messages\/[a-zA-Z0-9_-]+$/.test(pathname) ||
+    pathname === "/subscriptions";
 
   if (isPushedScreen) {
     return null;
@@ -32,7 +28,7 @@ export const MobileTabBar: React.FC = () => {
 
   // Définition des onglets par rôle
   const getTabs = () => {
-    if (user.role === "PROFESSIONNEL") {
+    if (user?.role === "PROFESSIONNEL") {
       return [
         {
           label: "Offres",
@@ -61,7 +57,7 @@ export const MobileTabBar: React.FC = () => {
       ];
     }
 
-    if (user.role === "ADMIN") {
+    if (user?.role === "ADMIN") {
       return [
         {
           label: "Dashboard",
@@ -95,7 +91,7 @@ export const MobileTabBar: React.FC = () => {
       {
         label: "Explorer",
         path: "/professionals",
-        icon: <IconCompass size={24} strokeWidth="1.8" />,
+        icon: <IconSearch size={24} strokeWidth="1.8" />,
         isActive: pathname === "/professionals" || pathname === "/",
       },
       {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { useParams, Link, useLocation } from "react-router-dom";
+import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
 import { professionalsApi, type ApiProfessional } from "../api/professionals";
 import { conversationsApi } from "../api/conversations";
 import { useAuth } from "../context/AuthContext";
@@ -7,12 +7,14 @@ import { useSubscriptionAccess } from "../hooks/useSubscriptionAccess";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { Alert } from "../components/Alert";
 import { LockedSubscriptionPaywall } from "../components/LockedSubscriptionPaywall";
+import { formatDisplayNoEmoji } from "../utils/textUtils";
 import {
   IconBuilding,
   IconShieldCheck,
   IconPhone,
   IconCheck,
   IconArrowLeft,
+  IconChevronLeft,
   IconSend,
 } from "../components/Icons";
 
@@ -47,6 +49,7 @@ const parseServices = (text: string | null | undefined): string[] => {
 export const ProfessionalDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const { loading: accessLoading, hasAccess } = useSubscriptionAccess();
 
@@ -59,6 +62,15 @@ export const ProfessionalDetailPage: React.FC = () => {
   const [sending, setSending] = useState(false);
   const [contactSuccess, setContactSuccess] = useState<string | null>(null);
   const [contactError, setContactError] = useState<string | null>(null);
+  const [isContactSheetOpen, setIsContactSheetOpen] = useState(false);
+
+  const handleOpenContactSheet = () => {
+    if (!isAuthenticated) {
+      navigate("/login", { state: { from: location } });
+      return;
+    }
+    setIsContactSheetOpen(true);
+  };
 
   const fetchProfessional = useCallback(async () => {
     if (!id) return;
@@ -165,7 +177,140 @@ export const ProfessionalDetailPage: React.FC = () => {
 
         {/* Fiche détaillée si abonné ou propriétaire */}
         {!accessLoading && (hasAccess || (pro && user && pro.utilisateur_id === user.id)) && !loading && !error && pro && (
-          <div className="pro-detail-layout">
+          <>
+            {/* VUE MOBILE APPLE (Fiche.dc.html) */}
+            <div className="ios-fiche-mobile">
+              <Link to="/professionals" className="ios-fiche-back">
+                <IconChevronLeft size={22} strokeWidth={1.8} />
+                <span>Annuaire</span>
+              </Link>
+
+              <div className="ios-fiche-header">
+                <div className="ios-fiche-avatar">
+                  <IconBuilding size={32} />
+                </div>
+                <div className="ios-fiche-identity">
+                  <h1 className="ios-fiche-name">{formatDisplayNoEmoji(pro.nom_structure)}</h1>
+                  {pro.statut_verification === "VERIFIE" && (
+                    <div className="ios-fiche-verified">
+                      <IconShieldCheck size={15} stroke="#1D7A3C" strokeWidth={1.8} />
+                      <span>Vérifié</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Services & Prestations */}
+              {(() => {
+                const services = parseServices(pro.description);
+                if (services.length > 0) {
+                  return (
+                    <>
+                      <div className="ios-fiche-section-label">Services</div>
+                      <div className="ios-fiche-services-card">
+                        {services.map((srv, idx) => (
+                          <div key={idx} className="ios-fiche-service-row">
+                            <span className="ios-fiche-service-icon">
+                              <IconCheck size={18} strokeWidth="2.2" />
+                            </span>
+                            <span>{formatDisplayNoEmoji(srv)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  );
+                }
+                return null;
+              })()}
+
+              {/* Coordonnées téléphoniques directes */}
+              {pro.telephone && (
+                <a href={`tel:${pro.telephone}`} className="ios-fiche-contact-card">
+                  <span className="ios-fiche-contact-icon">
+                    <IconPhone size={18} />
+                  </span>
+                  <span>{formatPhoneNumber(pro.telephone)}</span>
+                </a>
+              )}
+
+              {/* Barre CTA fixe en bas sur mobile */}
+              <div className="ios-fixed-cta-bar">
+                <div className="ios-fixed-cta-inner">
+                  <button
+                    type="button"
+                    className="ios-btn-cta"
+                    onClick={handleOpenContactSheet}
+                    id="mobile-contact-cta"
+                  >
+                    Contacter l’agence
+                  </button>
+                </div>
+              </div>
+
+              {/* Bottom sheet de mise en relation */}
+              {isContactSheetOpen && (
+                <div className="ios-sheet-overlay" onClick={() => setIsContactSheetOpen(false)}>
+                  <div className="ios-sheet-body" onClick={(e) => e.stopPropagation()}>
+                    <div className="ios-sheet-header">
+                      <h3 className="ios-sheet-title">Contacter {formatDisplayNoEmoji(pro.nom_structure)}</h3>
+                      <button
+                        type="button"
+                        className="ios-sheet-close"
+                        onClick={() => setIsContactSheetOpen(false)}
+                      >
+                        Fermer
+                      </button>
+                    </div>
+
+                    {isAuthenticated && user?.role === "PROFESSIONNEL" ? (
+                      <Alert
+                        type="warning"
+                        message="Seul un compte Voyageur peut initier une prise de contact avec une agence."
+                      />
+                    ) : contactSuccess ? (
+                      <div>
+                        <Alert type="success" message={contactSuccess} />
+                        <Link
+                          to="/messages"
+                          className="ios-btn-cta"
+                          style={{ marginTop: "14px" }}
+                        >
+                          Accéder à mes messages
+                        </Link>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleContactSubmit}>
+                        {contactError && (
+                          <Alert
+                            type="error"
+                            message={contactError}
+                            onClose={() => setContactError(null)}
+                          />
+                        )}
+                        <textarea
+                          className="ios-sheet-textarea"
+                          placeholder="Bonjour, je souhaite des renseignements sur vos offres..."
+                          value={premierMessage}
+                          onChange={(e) => setPremierMessage(e.target.value)}
+                          disabled={sending}
+                          required
+                        />
+                        <button
+                          type="submit"
+                          className="ios-btn-cta"
+                          disabled={sending || !premierMessage.trim()}
+                        >
+                          {sending ? "Envoi en cours..." : "Envoyer le message"}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* VUE DESKTOP EXISTANTE */}
+            <div className="pro-detail-layout">
             {/* Colonne informations de la structure */}
             <div className="pro-detail-card">
               <div className="pro-detail-header">
@@ -395,7 +540,8 @@ export const ProfessionalDetailPage: React.FC = () => {
               )}
             </aside>
           </div>
-        )}
+        </>
+      )}
       </div>
     </div>
   );

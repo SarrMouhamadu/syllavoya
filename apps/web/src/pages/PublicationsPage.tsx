@@ -123,7 +123,7 @@ export const PublicationsPage: React.FC = () => {
           </div>
         )}
 
-        {/* Liste des publications */}
+        {/* Liste des publications (Desktop) */}
         {!loading && !error && publications.length > 0 && (
           <div className="pub-grid">
             {publications.map((pub) => {
@@ -188,6 +188,61 @@ export const PublicationsPage: React.FC = () => {
                     </Link>
                   </div>
                 </article>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Liste des offres (Mobile iOS fidèle à Offres.dc.html) */}
+        {!loading && !error && publications.length > 0 && (
+          <div className="ios-offres-mobile">
+            <h1 className="ios-offres-title">Offres</h1>
+            {publications.map((pub) => {
+              const displayDate = pub.date_publication || pub.date_creation;
+              const formattedDate = displayDate
+                ? new Date(displayDate).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "";
+
+              const parsed = parsePublicationContent(pub.contenu);
+              const authorName = pub.professionnel?.nom_structure || "Sylla Voyage";
+
+              return (
+                <div key={`ios-${pub.id}`} className="ios-offre-card">
+                  <div className="ios-offre-header">
+                    <span className="ios-offre-author">{authorName}</span>
+                    <span className="ios-offre-date">{formattedDate}</span>
+                  </div>
+
+                  <div className="ios-offre-title">{pub.titre}</div>
+                  <div className="ios-offre-snippet">{parsed.text}</div>
+
+                  <div className="ios-offre-footer">
+                    <PublicationInteractions publicationId={pub.id} iosCounterOnly />
+                    <Link
+                      to={`/publications/${pub.id}`}
+                      className="ios-offre-chevron"
+                      aria-label={`Détail de l'offre ${pub.titre}`}
+                    >
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#8E8E93"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="m9 6 6 6-6 6" />
+                      </svg>
+                    </Link>
+                  </div>
+                </div>
               );
             })}
           </div>
