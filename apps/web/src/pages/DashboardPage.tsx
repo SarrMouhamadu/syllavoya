@@ -2189,17 +2189,24 @@ export const DashboardPage: React.FC = () => {
               Découvrez les offres et opportunités proposées par nos professionnels.
             </p>
           </div>
-          {activeSubscription && (
+          {activeSubscription?.statut === "ACTIF" && (
             <div className="traveler-sub-status-badge">
               <span className="status-pill status-actif">
                 <IconCheck size={12} /> Abonnement actif
               </span>
             </div>
           )}
+          {activeSubscription?.statut === "EN_ATTENTE" && (
+            <div className="traveler-sub-status-badge">
+              <span className="status-pill status-en_attente" style={{ background: "rgba(245, 158, 11, 0.1)", color: "#d97706", padding: "6px 12px", borderRadius: "9999px", fontSize: "0.85rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <IconClock size={12} /> Paiement en attente de confirmation
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Statut d'abonnement / Section principale */}
-        {!activeSubscription ? (
+        {activeSubscription?.statut !== "ACTIF" ? (
           <div
             className="traveler-locked-card"
             style={{

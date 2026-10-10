@@ -447,42 +447,42 @@ export class PaymentsService {
   // WEBHOOK NABOOPAY (Wave / Orange Money)
   // =========================================================================
   async handleNabooWebhook(payload: any, signatureHeader?: string, rawBodyBuffer?: Buffer): Promise<any> {
-    // 1. Vérification de la signature HMAC SHA-256 ou clé secrète
-    if (config.naboopayWebhookSecret) {
-      if (!signatureHeader) {
-        throw new AppError("En-tête de signature du webhook NabooPay manquant", 401, "MISSING_SIGNATURE");
-      }
+    const orderId = payload.order_id || payload.reference;
+    if (!orderId) {
+      throw new AppError("L'identifiant de commande (order_id) est manquant dans le webhook", 400, "VALIDATION_ERROR");
+    }
 
+    // 1. Vérification de la signature HMAC SHA-256 ou clé secrète
+    let isSignatureValid = false;
+    if (config.naboopayWebhookSecret && signatureHeader) {
       const cleanSignature = signatureHeader.replace(/^Bearer\s+/i, "").replace(/^sha256=/, "").trim();
       const expectedSecret = config.naboopayWebhookSecret.trim();
 
-      let isValid = false;
-
       // 1.1 Comparaison directe à temps constant avec le secret configuré
       if (cleanSignature.length === expectedSecret.length) {
-        isValid = crypto.timingSafeEqual(Buffer.from(cleanSignature), Buffer.from(expectedSecret));
+        isSignatureValid = crypto.timingSafeEqual(Buffer.from(cleanSignature), Buffer.from(expectedSecret));
       }
 
       // 1.2 Signature HMAC SHA-256
-      if (!isValid) {
+      if (!isSignatureValid) {
         const hmac = crypto.createHmac("sha256", expectedSecret);
         const computed = rawBodyBuffer
           ? hmac.update(rawBodyBuffer).digest("hex")
           : hmac.update(JSON.stringify(payload)).digest("hex");
 
         if (cleanSignature.length === computed.length) {
-          isValid = crypto.timingSafeEqual(Buffer.from(cleanSignature), Buffer.from(computed));
+          isSignatureValid = crypto.timingSafeEqual(Buffer.from(cleanSignature), Buffer.from(computed));
         }
-      }
-
-      if (!isValid) {
-        throw new AppError("Signature du webhook invalide", 401, "INVALID_SIGNATURE");
       }
     }
 
-    const orderId = payload.order_id || payload.reference;
-    if (!orderId) {
-      throw new AppError("L'identifiant de commande (order_id) est manquant dans le webhook", 400, "VALIDATION_ERROR");
+    // 1.3 Si le secret local n'est pas validé, valider formellement la transaction auprès de l'API NabooPay (clé d'API secrète)
+    if (!isSignatureValid) {
+      const directTx = await this.verifyTransactionStatusDirectly(orderId);
+      if (!directTx) {
+        throw new AppError("Signature du webhook invalide et transaction non confirmée par NabooPay", 401, "INVALID_SIGNATURE");
+      }
+      payload = { ...payload, ...directTx };
     }
 
     const rawStatus = (payload.transaction_status || payload.statut || "").toLowerCase();
@@ -564,6 +564,61 @@ export class PaymentsService {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Réconcilie automatiquement un paiement EN_ATTENTE en interrogeant l'API NabooPay.
+   * Si NabooPay confirme que la transaction est "paid", active immédiatement le paiement et l'abonnement.
+   */
+  async verifyAndReconcilePayment(reference: string): Promise<any> {
+    if (!reference || typeof reference !== "string") return null;
+
+    const payment = await db.orm.public.Paiement
+      .where({ reference })
+      .first();
+
+    if (!payment) return null;
+    if (payment.statut === "CONFIRME") {
+      return { status: "already_processed", subscription_status: "ACTIF" };
+    }
+    if (payment.statut !== "EN_ATTENTE") return null;
+
+    const tx = await this.verifyTransactionStatusDirectly(reference);
+    if (!tx) return null;
+
+    const rawStatus = (tx.transaction_status || tx.statut || "").toLowerCase();
+    const isSuccess = [
+      "completed",
+      "paid",
+      "paid_and_blocked",
+      "confirme",
+      "success",
+    ].includes(rawStatus);
+
+    const isFailure = [
+      "failed",
+      "cancelled",
+      "canceled",
+      "refunded",
+      "echoue",
+    ].includes(rawStatus);
+
+    if (isSuccess) {
+      const moyenPaiement = tx.selected_payment_method
+        ? `NABOOPAY_${String(tx.selected_payment_method).toUpperCase()}`
+        : (payment.moyen_paiement || "NABOOPAY");
+
+      return this.confirmPaymentAndActivate({
+        reference,
+        confirmedMontant: typeof tx.amount === "number" ? tx.amount : payment.montant,
+        moyenPaiement,
+        provider: "NABOOPAY",
+      });
+    } else if (isFailure) {
+      return this.failPayment({ reference });
+    }
+
+    return null;
   }
 }
 

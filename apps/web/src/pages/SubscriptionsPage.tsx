@@ -96,7 +96,7 @@ export const SubscriptionsPage: React.FC = () => {
 
   const hasActiveSub = mySubscription?.statut === "ACTIF";
   const hasExpiredSub = mySubscription?.statut === "EXPIRE";
-  const hasPendingSub = mySubscription?.statut === "EN_ATTENTE_PAIEMENT";
+  const hasPendingSub = mySubscription?.statut === "EN_ATTENTE" || mySubscription?.statut === "EN_ATTENTE_PAIEMENT";
 
   const handleSelectPlan = (plan: SubscriptionPlan) => {
     if (!isAuthenticated) {

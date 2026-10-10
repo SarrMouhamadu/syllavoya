@@ -84,6 +84,31 @@ export class SubscriptionsService {
       }
     }
 
+    // Réconciliation automatique avec la passerelle NabooPay pour tout abonnement EN_ATTENTE
+    for (const sub of subscriptions) {
+      if (sub.statut === "EN_ATTENTE") {
+        const pendingPaiements = await db.orm.public.Paiement
+          .where({ abonnement_id: sub.id, statut: "EN_ATTENTE" })
+          .all();
+
+        for (const p of pendingPaiements) {
+          try {
+            const verified = await paymentsService.verifyAndReconcilePayment(p.reference);
+            if (verified && verified.subscription_status === "ACTIF") {
+              sub.statut = "ACTIF";
+              const reloadedSub = await db.orm.public.Abonnement.where({ id: sub.id }).first();
+              if (reloadedSub) {
+                sub.date_debut = reloadedSub.date_debut;
+                sub.date_fin = reloadedSub.date_fin;
+              }
+            }
+          } catch {
+            // Ignorer les erreurs réseau temporaires
+          }
+        }
+      }
+    }
+
     // Priorité à l'abonnement ACTIF valide, sinon le plus récent
     const target = subscriptions.find((s) => s.statut === "ACTIF") || subscriptions[subscriptions.length - 1]!;
     const statut = target.statut;
@@ -285,10 +310,6 @@ export class SubscriptionsService {
       .where({ utilisateur_id: userId, statut: "ACTIF" })
       .all();
 
-    if (subscriptions.length === 0) {
-      return false;
-    }
-
     const now = Temporal.Now.instant();
     let hasValid = false;
 
@@ -305,7 +326,34 @@ export class SubscriptionsService {
       }
     }
 
-    return hasValid;
+    if (hasValid) {
+      return true;
+    }
+
+    // Réconciliation de sécurité : si aucun abonnement actif n'a été trouvé,
+    // vérifier si un abonnement EN_ATTENTE a été payé auprès de la passerelle NabooPay
+    const pendingSubs = await db.orm.public.Abonnement
+      .where({ utilisateur_id: userId, statut: "EN_ATTENTE" })
+      .all();
+
+    for (const sub of pendingSubs) {
+      const pendingPaiements = await db.orm.public.Paiement
+        .where({ abonnement_id: sub.id, statut: "EN_ATTENTE" })
+        .all();
+
+      for (const p of pendingPaiements) {
+        try {
+          const verified = await paymentsService.verifyAndReconcilePayment(p.reference);
+          if (verified && verified.subscription_status === "ACTIF") {
+            return true;
+          }
+        } catch {
+          // Continuer
+        }
+      }
+    }
+
+    return false;
   }
 }
 
