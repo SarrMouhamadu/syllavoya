@@ -19,18 +19,15 @@ export const formatDisplayNoEmoji = (text: string | null | undefined): string =>
   clean = clean.replace(/🇬🇧\s*Royaume-Uni|Royaume-Uni\s*🇬🇧/gi, "Royaume-Uni").replace(/🇬🇧/g, "Royaume-Uni");
   clean = clean.replace(/🇦🇪\s*Dubaï|Dubaï\s*🇦🇪/gi, "Dubaï / Émirats").replace(/🇦🇪/g, "Dubaï / Émirats");
 
-  // Remplacement des puces et pictogrammes décoratifs
-  clean = clean.replace(/📍/g, "");
-  clean = clean.replace(/📞/g, "");
-  clean = clean.replace(/✉️|📧/g, "");
-  clean = clean.replace(/✈️|🛫/g, "");
-  clean = clean.replace(/🏢/g, "");
-  clean = clean.replace(/🛡️|🔒/g, "");
-  clean = clean.replace(/✨|⭐|🌟/g, "");
-  clean = clean.replace(/👉|➡️/g, "");
+  // Remplacement précis de pictogrammes décoratifs spécifiques (uniquement les emojis)
+  clean = clean.replace(/✈️|🛫|📍|📞|✉️|📧|🏢|🛡️|🔒|✨|⭐|🌟|👉|➡️/gu, "");
 
-  // Nettoyage générique des emojis restants pour garantir un design Apple épuré
-  clean = clean.replace(/[\u{1F300}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F1E6}-\u{1F1FF}]/gu, "");
+  // Nettoyage ciblé strictement limité aux plages officielles d'emojis et pictographes
+  // (Exclut volontairement la ponctuation, typographie, symboles commerciaux et caractères tels que ✓, ☎, ★, ®, ™, « », –, —, ’)
+  clean = clean.replace(/[\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}]/gu, "");
+
+  // Nettoyage du sélecteur de variation Variation Selector-16 (U+FE0F) résiduel
+  clean = clean.replace(/\uFE0F/g, "");
 
   // Normalisation des espaces multiples
   return clean.replace(/\s{2,}/g, " ").trim();

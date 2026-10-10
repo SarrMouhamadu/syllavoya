@@ -7061,6 +7061,10 @@ body {
   display: none;
 }
 
+.profile-quick-links {
+  display: none !important;
+}
+
 /* Styles de base universels Apple iOS */
 .ios-large-title {
   font-family: var(--apple-font);
@@ -7267,6 +7271,11 @@ body {
     min-height: 44px;
     display: inline-flex;
     align-items: center;
+  }
+
+  /* Section profil Abonnement & Compte visible uniquement sur mobile */
+  .profile-quick-links {
+    display: block !important;
   }
 
   /* Remplacement du menu hamburger par la barre d'onglets pour connectés */

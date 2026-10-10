@@ -56,12 +56,13 @@ export const ProfessionalsPage: React.FC = () => {
 
     let list = professionals;
 
-    // Filtre pastille destination (insensible à la casse et aux accents)
+    // Filtre pastille destination (mot entier avec frontière \b, insensible à la casse et aux accents)
     if (selectedDestination !== "Tous") {
       const destTerm = normalize(selectedDestination);
+      const wordRegex = new RegExp(`\\b${destTerm}\\b`, "i");
       list = list.filter((pro) => {
         const text = normalize(`${pro.nom_structure || ""} ${pro.informations_professionnelles || ""} ${pro.description || ""}`);
-        return text.includes(destTerm);
+        return wordRegex.test(text);
       });
     }
 
