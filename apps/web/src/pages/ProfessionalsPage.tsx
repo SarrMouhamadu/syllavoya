@@ -6,19 +6,23 @@ import { Alert } from "../components/Alert";
 import { EmptyState } from "../components/EmptyState";
 import { LockedSubscriptionPaywall } from "../components/LockedSubscriptionPaywall";
 import { useSubscriptionAccess } from "../hooks/useSubscriptionAccess";
+import { formatDisplayNoEmoji } from "../utils/textUtils";
 import {
   IconSearch,
   IconShieldCheck,
   IconBuilding,
-  IconMapPin,
-  IconArrowRight,
   IconRefresh,
+  IconChevronRight,
+  IconX,
 } from "../components/Icons";
+
+const DESTINATIONS = ["Tous", "Canada", "Sénégal", "Chine"];
 
 export const ProfessionalsPage: React.FC = () => {
   const { loading: accessLoading, hasAccess } = useSubscriptionAccess();
   const [professionals, setProfessionals] = useState<ApiProfessional[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedDestination, setSelectedDestination] = useState<string>("Tous");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,56 +49,97 @@ export const ProfessionalsPage: React.FC = () => {
     }
   }, [hasAccess, fetchProfessionals]);
 
-  // Filtrage local en temps réel sur les données réelles
+  // Filtrage local côté client (recherche textuelle + pastilles destinations)
   const filteredProfessionals = useMemo(() => {
-    if (!searchTerm.trim()) return professionals;
-    const term = searchTerm.toLowerCase();
-    return professionals.filter((pro) => {
-      const name = pro.nom_structure?.toLowerCase() || "";
-      const info = pro.informations_professionnelles?.toLowerCase() || "";
-      const desc = pro.description?.toLowerCase() || "";
-      return name.includes(term) || info.includes(term) || desc.includes(term);
-    });
-  }, [professionals, searchTerm]);
+    let list = professionals;
+
+    // Filtre pastille destination (côté client sans modifier l'API)
+    if (selectedDestination !== "Tous") {
+      const destTerm = selectedDestination.toLowerCase();
+      list = list.filter((pro) => {
+        const text = `${pro.nom_structure || ""} ${pro.informations_professionnelles || ""} ${pro.description || ""}`.toLowerCase();
+        return text.includes(destTerm);
+      });
+    }
+
+    // Filtre champ de recherche
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      list = list.filter((pro) => {
+        const name = pro.nom_structure?.toLowerCase() || "";
+        const info = pro.informations_professionnelles?.toLowerCase() || "";
+        const desc = pro.description?.toLowerCase() || "";
+        return name.includes(term) || info.includes(term) || desc.includes(term);
+      });
+    }
+
+    return list;
+  }, [professionals, searchTerm, selectedDestination]);
+
+  // Génération d'une ligne de résumé courte et épurée (style SF / Apple)
+  const getShortSummary = (pro: ApiProfessional): string => {
+    if (pro.informations_professionnelles && !pro.informations_professionnelles.toLowerCase().includes("12345")) {
+      return formatDisplayNoEmoji(pro.informations_professionnelles);
+    }
+    if (pro.description && !pro.description.toLowerCase().includes("12345")) {
+      const lines = pro.description.split("\n").map((l) => l.trim()).filter(Boolean);
+      if (lines.length > 0) {
+        const cleaned = lines[0].replace(/^(\d+[\.\)]\s*|[-•*]\s*)/, "").trim();
+        return formatDisplayNoEmoji(cleaned.slice(0, 50));
+      }
+    }
+    return "Agence de voyage vérifiée";
+  };
 
   return (
     <div className="professionals-page">
       <div className="container">
-        {/* En-tête de section */}
-        <div className="page-header">
-          <div className="page-header-badge">
-            <IconShieldCheck size={16} />
-            <span>Annuaire Officiel</span>
-          </div>
-          <h1 className="page-title">Professionnels du voyage vérifiés</h1>
-          <p className="page-subtitle">
-            Consultez les structures et guides enregistrés dont le dossier administratif a été formellement validé par Sylla Voyage.
-          </p>
+        {/* En-tête épuré style Apple : Grand Titre « Explorer » */}
+        <div className="explorer-header">
+          <h1 className="ios-large-title">Explorer</h1>
 
-          {/* Si l'utilisateur n'a pas accès, on ne propose pas la recherche */}
+          {/* Si l'utilisateur a accès, barre de recherche et filtres */}
           {hasAccess && (
-            <div className="search-bar-wrap">
-              <div className="search-input-box">
-                <IconSearch size={18} className="search-icon" />
+            <>
+              {/* Champ de recherche arrondi gris #E3E3E8 */}
+              <div className="ios-search-box">
+                <IconSearch size={18} className="ios-search-icon" aria-hidden="true" />
                 <input
                   type="text"
-                  className="search-input"
-                  placeholder="Rechercher par nom d'agence, ville ou activité..."
+                  className="ios-search-input"
+                  placeholder="Agence, ville, destination"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  aria-label="Rechercher un professionnel"
+                  aria-label="Rechercher une agence, une ville ou une destination"
                 />
                 {searchTerm && (
                   <button
                     type="button"
-                    className="search-clear-btn"
+                    className="ios-search-clear"
                     onClick={() => setSearchTerm("")}
+                    aria-label="Effacer la recherche"
                   >
-                    Effacer
+                    <IconX size={16} />
                   </button>
                 )}
               </div>
-            </div>
+
+              {/* Filtres en pastilles horizontales (Tous, Canada, Sénégal, Chine) */}
+              <div className="ios-filter-pills" role="tablist" aria-label="Filtrer par destination">
+                {DESTINATIONS.map((dest) => (
+                  <button
+                    key={dest}
+                    type="button"
+                    role="tab"
+                    aria-selected={selectedDestination === dest}
+                    className={`ios-filter-pill ${selectedDestination === dest ? "is-active" : ""}`}
+                    onClick={() => setSelectedDestination(dest)}
+                  >
+                    {dest}
+                  </button>
+                ))}
+              </div>
+            </>
           )}
         </div>
 
@@ -108,13 +153,13 @@ export const ProfessionalsPage: React.FC = () => {
         {/* Verrouillage payant si non abonné */}
         {!accessLoading && !hasAccess && (
           <LockedSubscriptionPaywall
-            title="Accès aux agences de voyage réservé aux abonnés"
-            subtitle="Pour consulter l'annuaire complet des agences vérifiées et entrer en contact, un abonnement actif est requis."
+            title="Débloquez l'annuaire"
+            subtitle="Accès réservé aux membres pour contacter les agences vérifiées."
             perks={[
-              "Accès illimité à l'annuaire des agences et guides certifiés",
-              "Consultation des coordonnées et des fiches complètes",
-              "Messagerie directe et demandes de devis sécurisées",
-              "Règlement simple et instantané via Wave ou Orange Money (5 000 FCFA/mois)",
+              "Annuaire complet des agences vérifiées",
+              "Coordonnées directes et fiches détaillées",
+              "Messagerie directe et demandes de devis",
+              "Offres de voyage vérifiées en temps réel",
             ]}
           />
         )}
@@ -122,7 +167,7 @@ export const ProfessionalsPage: React.FC = () => {
         {/* État de chargement des données si abonné */}
         {!accessLoading && hasAccess && loading && (
           <div className="center-container">
-            <LoadingSpinner message="Recherche des professionnels vérifiés..." size="large" />
+            <LoadingSpinner message="Chargement des agences..." size="large" />
           </div>
         )}
 
@@ -134,7 +179,7 @@ export const ProfessionalsPage: React.FC = () => {
               type="button"
               className="btn btn-outline"
               onClick={fetchProfessionals}
-              style={{ marginTop: "14px" }}
+              style={{ marginTop: "14px", minHeight: "44px" }}
             >
               <IconRefresh size={16} />
               <span>Réessayer</span>
@@ -147,71 +192,56 @@ export const ProfessionalsPage: React.FC = () => {
           <div className="state-container">
             <EmptyState
               icon={<IconBuilding size={40} />}
-              title="Aucun professionnel vérifié pour le moment"
-              description="Notre équipe procède actuellement à l'audit de nouvelles structures partenaires. Les agences validées apparaîtront ici."
+              title="Aucune agence pour le moment"
+              description="Les structures partenaires validées apparaîtront ici."
             />
           </div>
         )}
 
-        {/* État vide si aucun résultat de recherche */}
+        {/* État vide si aucun résultat de recherche / filtre */}
         {!accessLoading && hasAccess && !loading && !error && professionals.length > 0 && filteredProfessionals.length === 0 && (
           <div className="state-container">
             <EmptyState
               icon={<IconSearch size={40} />}
-              title="Aucun résultat pour cette recherche"
-              description={`Aucun professionnel ne correspond aux termes "${searchTerm}".`}
-              actionText="Réinitialiser la recherche"
-              onAction={() => setSearchTerm("")}
+              title="Aucun résultat trouvé"
+              description={`Aucune agence ne correspond à vos critères de recherche.`}
+              actionText="Réinitialiser les filtres"
+              onAction={() => {
+                setSearchTerm("");
+                setSelectedDestination("Tous");
+              }}
             />
           </div>
         )}
 
-        {/* Grille de cartes réelles entièrement cliquables */}
+        {/* Liste des cartes d'agences épurées Apple */}
         {!accessLoading && hasAccess && !loading && !error && filteredProfessionals.length > 0 && (
-          <div className="pro-grid">
+          <div className="pro-grid" role="list">
             {filteredProfessionals.map((pro) => (
               <Link
                 key={pro.id}
                 to={`/professionals/${pro.id}`}
-                className="pro-card-link"
+                className="ios-agency-card"
                 id={`pro-card-${pro.id}`}
+                role="listitem"
+                aria-label={`Consulter la fiche de ${pro.nom_structure}`}
               >
-                <article className="pro-card">
-                  <div className="pro-card-header">
-                    <div className="pro-avatar">
-                      <IconBuilding size={24} />
-                    </div>
-                    <div className="pro-meta">
-                      <h2 className="pro-name">{pro.nom_structure}</h2>
-                      <span className="badge-verified">
-                        <IconShieldCheck size={14} />
-                        <span>Vérifié</span>
-                      </span>
-                    </div>
-                  </div>
+                <div className="ios-agency-avatar" aria-hidden="true">
+                  <IconBuilding size={24} strokeWidth="1.8" />
+                </div>
 
-                  <div className="pro-card-body">
-                    {pro.description && !pro.description.toLowerCase().includes("12345") && !pro.description.toLowerCase().includes("licence") ? (
-                      <p className="pro-description">{pro.description}</p>
-                    ) : null}
-
-                    {pro.informations_professionnelles &&
-                    !pro.informations_professionnelles.toLowerCase().includes("12345") &&
-                    !pro.informations_professionnelles.toLowerCase().includes("licence") ? (
-                      <div className="pro-info-tag">
-                        <IconMapPin size={14} />
-                        <span className="info-text">{pro.informations_professionnelles}</span>
-                      </div>
-                    ) : null}
+                <div className="ios-agency-content">
+                  <h2 className="ios-agency-name">{formatDisplayNoEmoji(pro.nom_structure)}</h2>
+                  <p className="ios-agency-subtitle">{getShortSummary(pro)}</p>
+                  <div className="ios-agency-verified">
+                    <IconShieldCheck size={14} strokeWidth="1.8" />
+                    <span>Vérifié</span>
                   </div>
+                </div>
 
-                  <div className="pro-card-footer">
-                    <span className="view-profile-cta">
-                      <span>Consulter la fiche</span>
-                      <IconArrowRight size={14} />
-                    </span>
-                  </div>
-                </article>
+                <div className="ios-agency-chevron" aria-hidden="true">
+                  <IconChevronRight size={18} strokeWidth="1.8" />
+                </div>
               </Link>
             ))}
           </div>

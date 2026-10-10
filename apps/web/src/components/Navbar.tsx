@@ -65,16 +65,17 @@ export const Navbar: React.FC = () => {
           <span className="brand-text">Sylla Voyage</span>
         </Link>
 
-        {/* Mobile Toggle (strictement masqué sur desktop) */}
-        <button
-          type="button"
-          className="navbar-toggle"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-expanded={mobileMenuOpen}
-          aria-label="Ouvrir le menu"
-        >
-          {mobileMenuOpen ? <IconX size={22} /> : <IconMenu size={22} />}
-        </button>
+        {/* Actions visiteur mobile (sans hamburger) */}
+        {!isAuthenticated && (
+          <div className="navbar-mobile-visitor-actions">
+            <Link to="/login" className="nav-mobile-btn-login" id="nav-mobile-login">
+              Connexion
+            </Link>
+            <Link to="/register" className="btn btn-primary btn-sm nav-mobile-btn-register" id="nav-mobile-register">
+              S'inscrire
+            </Link>
+          </div>
+        )}
 
         {/* Navigation principale */}
         <nav className={`navbar-nav ${mobileMenuOpen ? "is-open" : ""}`}>

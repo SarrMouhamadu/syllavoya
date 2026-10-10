@@ -2,6 +2,7 @@ import React from "react";
 import { Routes, Route } from "react-router-dom";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/Footer";
+import { MobileTabBar } from "./components/MobileTabBar";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
@@ -114,6 +115,7 @@ export const App: React.FC = () => {
         </Routes>
       </main>
       <Footer />
+      <MobileTabBar />
     </>
   );
 };
