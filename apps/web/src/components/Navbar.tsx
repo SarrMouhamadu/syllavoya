@@ -63,8 +63,8 @@ export const Navbar: React.FC = () => {
           <span className="brand-text">Sylla Voyage</span>
         </Link>
 
-        {/* Actions visiteur mobile (sans hamburger) */}
-        {!isAuthenticated && (
+        {/* Actions mobile dans le header (sans hamburger) */}
+        {!isAuthenticated ? (
           <div className="navbar-mobile-visitor-actions">
             <Link to="/login" className="nav-mobile-btn-login" id="nav-mobile-login">
               Connexion
@@ -72,6 +72,19 @@ export const Navbar: React.FC = () => {
             <Link to="/register" className="btn btn-primary btn-sm nav-mobile-btn-register" id="nav-mobile-register">
               S'inscrire
             </Link>
+          </div>
+        ) : (
+          <div className="navbar-mobile-auth-actions">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="nav-mobile-btn-logout"
+              id="nav-mobile-logout"
+              aria-label="Se déconnecter"
+            >
+              <IconLogOut size={16} />
+              <span>Déconnexion</span>
+            </button>
           </div>
         )}
 

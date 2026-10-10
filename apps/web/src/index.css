@@ -7061,6 +7061,10 @@ body {
   display: none;
 }
 
+.navbar-mobile-auth-actions {
+  display: none;
+}
+
 .profile-quick-links {
   display: none !important;
 }
@@ -7271,6 +7275,36 @@ body {
     min-height: 44px;
     display: inline-flex;
     align-items: center;
+  }
+
+  /* Actions mobile utilisateur connecté (déconnexion rapide accessible partout) */
+  .navbar-mobile-auth-actions {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+  }
+
+  .nav-mobile-btn-logout {
+    font-family: var(--apple-font);
+    font-size: 13px;
+    font-weight: 600;
+    color: #D70015;
+    background: #FEE2E2;
+    border: none;
+    border-radius: 9999px;
+    padding: 6px 12px;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.15s ease;
+  }
+
+  .nav-mobile-btn-logout:active {
+    background-color: #FECACA;
   }
 
   /* Section profil Abonnement & Compte visible uniquement sur mobile */

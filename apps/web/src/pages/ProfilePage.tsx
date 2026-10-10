@@ -640,28 +640,52 @@ export const ProfilePage: React.FC = () => {
         {/* Section minimale d'accès mobile : Abonnement & Déconnexion */}
         <div className="profile-card profile-quick-links" style={{ marginTop: "1.5rem" }}>
           <h2 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "var(--apple-text, #1C1C1E)" }}>
-            Abonnement & Compte
+            {user.role === "ADMIN" ? "Compte Administrateur" : "Abonnement & Compte"}
           </h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <Link
-              to="/subscriptions"
-              className="btn btn-outline"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "12px 16px",
-                borderRadius: "12px",
-                textDecoration: "none",
-                minHeight: "44px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <IconCreditCard size={18} style={{ color: "var(--apple-accent, #0A64D8)" }} />
-                <span>Mon abonnement & Tarifs</span>
-              </div>
-              <IconChevronRight size={16} />
-            </Link>
+            {user.role !== "ADMIN" && (
+              <Link
+                to="/subscriptions"
+                className="btn btn-outline"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "12px 16px",
+                  borderRadius: "12px",
+                  textDecoration: "none",
+                  minHeight: "44px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <IconCreditCard size={18} style={{ color: "var(--apple-accent, #0A64D8)" }} />
+                  <span>Mon abonnement & Tarifs</span>
+                </div>
+                <IconChevronRight size={16} />
+              </Link>
+            )}
+
+            {user.role === "ADMIN" && (
+              <Link
+                to="/dashboard"
+                className="btn btn-outline"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "12px 16px",
+                  borderRadius: "12px",
+                  textDecoration: "none",
+                  minHeight: "44px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <IconShieldCheck size={18} style={{ color: "var(--apple-accent, #0A64D8)" }} />
+                  <span>Tableau de bord administrateur</span>
+                </div>
+                <IconChevronRight size={16} />
+              </Link>
+            )}
 
             {user.role === "VOYAGEUR" && (
               <Link
