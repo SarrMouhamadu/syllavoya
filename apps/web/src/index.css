@@ -6691,3 +6691,175 @@ body {
   }
 }
 
+/* ==========================================================================
+   STANDARDS DE RESPONSIVITÉ MOBILE & EXPÉRIENCE TACTILE (SMARTPHONES)
+   Standards UX/UI : iOS Safari, Android Chrome, écrans étroits (360px - 768px)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  /* 1. Reset tactile & Anti-débordement horizontal */
+  html, body, #root, .main-content {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* 2. Cibles tactiles & Ergonomie */
+  button, 
+  .btn, 
+  .nav-link, 
+  .nav-btn-link, 
+  a.pro-card-link, 
+  .dashboard-tab-btn,
+  .pro-filter-tab {
+    touch-action: manipulation;
+  }
+
+  /* 3. Prévention stricte du zoom automatique iOS Safari (< 16px) */
+  input, select, textarea, .form-input, .form-select, .form-textarea, .search-input {
+    font-size: 16px !important;
+  }
+
+  /* 4. Support Safe Area (encoches iPhone et barre système) */
+  .navbar-header {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+
+  .footer, footer {
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0)) !important;
+  }
+
+  /* 5. Typographie fluide anti-débordement */
+  h1, .page-title, .hero-title, .pro-detail-title {
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  /* 6. Grilles & Colonnes 100% responsives */
+  .pro-grid,
+  .plans-grid,
+  .traveler-offers-grid,
+  .publications-grid,
+  .pub-grid,
+  .steps-grid,
+  .admin-users-grid {
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+    gap: 16px !important;
+  }
+
+  /* 7. Cartes & Conteneurs */
+  .pro-card,
+  .traveler-offer-card,
+  .publication-card,
+  .plan-card,
+  .profile-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 8. Onglets et rubans tactiles déroulants horizontalement */
+  .dashboard-tabs,
+  .admin-nav-tabs,
+  .sub-role-tabs,
+  .pro-filter-tabs {
+    display: flex !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding-bottom: 6px !important;
+  }
+
+  .dashboard-tabs::-webkit-scrollbar,
+  .admin-nav-tabs::-webkit-scrollbar,
+  .sub-role-tabs::-webkit-scrollbar,
+  .pro-filter-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .dashboard-tab-btn,
+  .admin-tab-btn,
+  .sub-role-tab-btn,
+  .pro-filter-tab {
+    flex-shrink: 0 !important;
+  }
+
+  /* 9. Tableaux avec défilement tactile fluide */
+  .table-responsive,
+  .admin-table-container,
+  div[style*="overflow-x: auto"],
+  div[style*="overflowX: auto"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* 10. Détail professionnel : Services et Contact sur mobile */
+  .pro-detail-layout {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+
+  .professional-services-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  /* 11. Modales centrées avec padding ergonomique */
+  .modal-container,
+  .modal-content,
+  div[style*="position: fixed"] > div[style*="borderRadius: 16px"],
+  div[style*="position: fixed"] > div[style*="border-radius: 16px"] {
+    width: 94% !important;
+    max-width: 94% !important;
+    box-sizing: border-box !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Écrans de smartphones étroits (< 480px, iPhone 12/13/14/15/16 Mini & Standard, Galaxy S) */
+  .container {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .btn {
+    padding: 10px 14px !important;
+  }
+
+  .btn-lg {
+    min-height: 48px !important;
+    font-size: 0.95rem !important;
+    padding: 12px 18px !important;
+  }
+
+  .traveler-locked-card {
+    padding: 24px 14px !important;
+    margin: 16px auto !important;
+  }
+
+  .pro-card {
+    padding: 16px 14px !important;
+  }
+
+  .pro-detail-card {
+    padding: 18px 14px !important;
+  }
+
+  .plans-grid {
+    gap: 14px !important;
+  }
+
+  .plan-card {
+    padding: 20px 14px !important;
+  }
+
+  .professional-services-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+

@@ -195,6 +195,7 @@ export const ProfessionalDetailPage: React.FC = () => {
                       if (services.length > 0) {
                         return (
                           <div
+                            className="professional-services-grid"
                             style={{
                               display: "grid",
                               gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
