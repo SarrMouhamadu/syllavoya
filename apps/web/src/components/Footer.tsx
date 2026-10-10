@@ -13,18 +13,18 @@ export const Footer: React.FC = () => {
               <span>Sylla Voyage</span>
             </Link>
             <p className="footer-desc">
-              Plateforme de mise en relation directe avec des agences de voyage et professionnels formels et vérifiés au Sénégal.
+              Mise en relation avec des agences et professionnels de voyage vérifiés au Sénégal.
             </p>
             <div className="footer-trust-tag">
-              <IconShieldCheck size={16} />
-              <span>Vérification administrative rigoureuse</span>
+              <IconShieldCheck size={15} />
+              <span>Professionnels & guides vérifiés</span>
             </div>
           </div>
 
           <div className="footer-links-col">
             <h4 className="footer-title">Plateforme</h4>
             <ul className="footer-list">
-              <li className="footer-item"><Link to="/professionals" className="footer-link">Trouver un professionnel</Link></li>
+              <li className="footer-item"><Link to="/professionals" className="footer-link">Annuaire des professionnels</Link></li>
               <li className="footer-item"><Link to="/publications" className="footer-link">Offres de voyage</Link></li>
               <li className="footer-item"><Link to="/subscriptions" className="footer-link">Tarifs & Abonnements</Link></li>
             </ul>
@@ -38,8 +38,8 @@ export const Footer: React.FC = () => {
                   href="mailto:contact@syllaenglishacademy.com"
                   className="footer-link footer-contact-link"
                 >
-                  <IconMail size={15} />
-                  <span>Support : contact@syllaenglishacademy.com</span>
+                  <IconMail size={14} />
+                  <span>contact@syllaenglishacademy.com</span>
                 </a>
               </li>
               <li className="footer-item">
@@ -49,8 +49,8 @@ export const Footer: React.FC = () => {
                   rel="noopener noreferrer"
                   className="footer-link footer-contact-link"
                 >
-                  <IconPhone size={15} />
-                  <span>Réclamations & explications : +221 77 709 19 13</span>
+                  <IconPhone size={14} />
+                  <span>WhatsApp / Tél : +221 77 709 19 13</span>
                 </a>
               </li>
             </ul>
@@ -62,8 +62,8 @@ export const Footer: React.FC = () => {
             © {new Date().getFullYear()} Sylla Voyage. Tous droits réservés.
           </p>
           <div className="footer-legal-links">
-            <Link to="/publications" className="footer-legal-link">Conditions générales</Link>
-            <Link to="/publications" className="footer-legal-link">Politique de confidentialité</Link>
+            <Link to="/publications" className="footer-legal-link">CGU</Link>
+            <Link to="/publications" className="footer-legal-link">Confidentialité</Link>
           </div>
         </div>
       </div>

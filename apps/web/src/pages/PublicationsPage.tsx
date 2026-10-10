@@ -180,7 +180,7 @@ export const PublicationsPage: React.FC = () => {
                     )}
                     <Link
                       to={`/publications/${pub.id}`}
-                      className="btn btn-primary btn-block btn-lg"
+                      className="btn btn-primary btn-block btn-sm"
                       id={`read-pub-${pub.id}`}
                     >
                       <span>Consulter l'offre</span>

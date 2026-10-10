@@ -175,7 +175,7 @@ export const PublicationDetailPage: React.FC = () => {
                   </p>
                   <Link
                     to={`/professionals/${pub.professionnel_id}`}
-                    className="btn btn-primary btn-lg btn-block"
+                    className="btn btn-primary btn-block"
                   >
                     <IconMessage size={16} />
                     <span>Contacter cette structure</span>

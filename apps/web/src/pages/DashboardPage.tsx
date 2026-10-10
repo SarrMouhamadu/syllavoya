@@ -2181,28 +2181,28 @@ export const DashboardPage: React.FC = () => {
   return (
     <div className="dashboard-page">
       <div className="container dashboard-container">
-        {/* 1. En-tête simple */}
+        {/* 1. En-tête simple et compact */}
         <div className="traveler-header">
-          <div>
-            <h1 className="traveler-title">Bonjour, {user.prenom || user.nom}</h1>
+          <div className="traveler-welcome-wrap">
+            <div className="traveler-title-row">
+              <h1 className="traveler-title">Bonjour, {user.prenom || user.nom}</h1>
+              {activeSubscription?.statut === "ACTIF" && (
+                <span className="traveler-status-badge status-actif">
+                  <IconCheck size={13} />
+                  <span>Abonnement actif</span>
+                </span>
+              )}
+              {activeSubscription?.statut === "EN_ATTENTE" && (
+                <span className="traveler-status-badge status-en_attente">
+                  <IconClock size={13} />
+                  <span>Paiement en attente</span>
+                </span>
+              )}
+            </div>
             <p className="traveler-subtitle">
-              Découvrez les offres et opportunités proposées par nos professionnels.
+              Offres exclusives de nos agences partenaires vérifiées.
             </p>
           </div>
-          {activeSubscription?.statut === "ACTIF" && (
-            <div className="traveler-sub-status-badge">
-              <span className="status-pill status-actif">
-                <IconCheck size={12} /> Abonnement actif
-              </span>
-            </div>
-          )}
-          {activeSubscription?.statut === "EN_ATTENTE" && (
-            <div className="traveler-sub-status-badge">
-              <span className="status-pill status-en_attente" style={{ background: "rgba(245, 158, 11, 0.1)", color: "#d97706", padding: "6px 12px", borderRadius: "9999px", fontSize: "0.85rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                <IconClock size={12} /> Paiement en attente de confirmation
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Statut d'abonnement / Section principale */}
@@ -2213,44 +2213,44 @@ export const DashboardPage: React.FC = () => {
               background: "var(--color-surface, #ffffff)",
               border: "1px solid var(--color-border, #e2e8f0)",
               borderRadius: "16px",
-              padding: "48px 24px",
+              padding: "36px 20px",
               textAlign: "center",
-              maxWidth: "600px",
-              margin: "32px auto",
+              maxWidth: "560px",
+              margin: "24px auto",
               boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
             }}
           >
             <div
               style={{
-                width: "56px",
-                height: "56px",
+                width: "48px",
+                height: "48px",
                 borderRadius: "50%",
                 background: "rgba(16, 185, 129, 0.1)",
                 color: "var(--color-primary, #059669)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                margin: "0 auto 16px",
+                margin: "0 auto 12px",
               }}
             >
-              <IconLock size={28} />
+              <IconLock size={24} />
             </div>
-            <h2 style={{ fontSize: "1.3rem", fontWeight: 700, marginBottom: "8px", color: "var(--color-text, #1e293b)" }}>
+            <h2 style={{ fontSize: "1.2rem", fontWeight: 700, marginBottom: "8px", color: "var(--color-text, #1e293b)" }}>
               Offres & opportunités réservées aux abonnés
             </h2>
             <p
               style={{
                 color: "var(--color-text-muted, #64748b)",
-                fontSize: "0.95rem",
-                lineHeight: 1.6,
-                marginBottom: "24px",
+                fontSize: "0.9rem",
+                lineHeight: 1.5,
+                marginBottom: "20px",
               }}
             >
-              Pour consulter les circuits, séjours et opportunités exclusifs proposés par nos agences partenaires vérifiées, activez votre abonnement Voyageur.
+              Activez votre abonnement Voyageur pour accéder aux circuits, séjours et opportunités de voyage exclusifs.
             </p>
-            <div style={{ marginBottom: "24px" }}>
-              <span style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--color-text, #1e293b)" }}>5 000 FCFA</span>
-              <span style={{ color: "var(--color-text-muted, #64748b)", fontSize: "0.9rem" }}> / mois</span>
+            <div style={{ marginBottom: "20px" }}>
+              <span style={{ fontSize: "1.45rem", fontWeight: 800, color: "var(--color-text, #1e293b)" }}>5 000 FCFA</span>
+              <span style={{ color: "var(--color-text-muted, #64748b)", fontSize: "0.85rem" }}> / mois</span>
             </div>
             <Link
               to="/subscriptions"
@@ -2266,12 +2266,14 @@ export const DashboardPage: React.FC = () => {
           /* 2. Section principale : Offres disponibles si abonné */
           <div className="traveler-offers-section">
             <div className="traveler-section-header">
-              <h2 className="traveler-section-title">Offres disponibles</h2>
-              {publicPublications.length > 0 && (
-                <span className="traveler-offers-count">
-                  {publicPublications.length} offre{publicPublications.length > 1 ? "s" : ""}
-                </span>
-              )}
+              <div className="traveler-section-title-wrap">
+                <h2 className="traveler-section-title">Offres disponibles</h2>
+                {publicPublications.length > 0 && (
+                  <span className="traveler-offers-count">
+                    {publicPublications.length} offre{publicPublications.length > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
             </div>
 
             {publicPublications.length === 0 ? (

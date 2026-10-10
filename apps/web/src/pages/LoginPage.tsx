@@ -189,7 +189,7 @@ export const LoginPage: React.FC = () => {
           <button
             type="submit"
             id="login-submit-btn"
-            className="btn btn-primary btn-block btn-lg"
+            className="btn btn-primary btn-block"
             disabled={loading}
           >
             {loading ? "Connexion en cours..." : "Se connecter"}
