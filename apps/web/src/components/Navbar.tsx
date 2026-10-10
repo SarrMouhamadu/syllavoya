@@ -182,6 +182,31 @@ export const Navbar: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Bouton de déconnexion direct visible pour l'administrateur */}
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="btn btn-outline btn-sm nav-admin-direct-logout"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  color: "#D70015",
+                  borderColor: "#FCA5A5",
+                  backgroundColor: "#FFF5F5",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  padding: "6px 12px",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                }}
+                id="nav-admin-direct-logout"
+                title="Se déconnecter de la session administrateur"
+              >
+                <IconLogOut size={15} />
+                <span>Déconnexion</span>
+              </button>
             </div>
           ) : user.role === "PROFESSIONNEL" ? (
             /* ========================================== */

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { subscriptionsApi, type UserSubscription } from "../api/subscriptions";
 import { verificationApi, type MyVerificationResponse } from "../api/verification";
@@ -24,13 +24,20 @@ import {
   IconEdit,
   IconTrash,
   IconUser,
+  IconLogOut,
 } from "../components/Icons";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { PublicationInteractions } from "../components/PublicationInteractions";
 import { exportPublicationsToCSV } from "../utils/csvExport";
 
 export const DashboardPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   const [loading, setLoading] = useState(true);
   const [activeSubscription, setActiveSubscription] = useState<UserSubscription | null>(null);
@@ -786,6 +793,23 @@ export const DashboardPage: React.FC = () => {
               >
                 <IconPlus size={16} />
                 <span>+ Créer un compte agence</span>
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={handleLogout}
+                id="btn-admin-header-logout"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  color: "#D70015",
+                  borderColor: "#FCA5A5",
+                  background: "#FFF5F5",
+                }}
+              >
+                <IconLogOut size={16} />
+                <span>Déconnexion</span>
               </button>
             </div>
           </div>
