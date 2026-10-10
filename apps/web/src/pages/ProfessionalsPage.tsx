@@ -51,25 +51,26 @@ export const ProfessionalsPage: React.FC = () => {
 
   // Filtrage local côté client (recherche textuelle + pastilles destinations)
   const filteredProfessionals = useMemo(() => {
+    const normalize = (str: string) =>
+      str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
     let list = professionals;
 
-    // Filtre pastille destination (côté client sans modifier l'API)
+    // Filtre pastille destination (insensible à la casse et aux accents)
     if (selectedDestination !== "Tous") {
-      const destTerm = selectedDestination.toLowerCase();
+      const destTerm = normalize(selectedDestination);
       list = list.filter((pro) => {
-        const text = `${pro.nom_structure || ""} ${pro.informations_professionnelles || ""} ${pro.description || ""}`.toLowerCase();
+        const text = normalize(`${pro.nom_structure || ""} ${pro.informations_professionnelles || ""} ${pro.description || ""}`);
         return text.includes(destTerm);
       });
     }
 
-    // Filtre champ de recherche
+    // Filtre champ de recherche (insensible à la casse et aux accents)
     if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
+      const term = normalize(searchTerm);
       list = list.filter((pro) => {
-        const name = pro.nom_structure?.toLowerCase() || "";
-        const info = pro.informations_professionnelles?.toLowerCase() || "";
-        const desc = pro.description?.toLowerCase() || "";
-        return name.includes(term) || info.includes(term) || desc.includes(term);
+        const text = normalize(`${pro.nom_structure || ""} ${pro.informations_professionnelles || ""} ${pro.description || ""}`);
+        return text.includes(term);
       });
     }
 

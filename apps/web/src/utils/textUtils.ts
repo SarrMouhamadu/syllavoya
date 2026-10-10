@@ -8,18 +8,18 @@ export const formatDisplayNoEmoji = (text: string | null | undefined): string =>
   if (!text) return "";
   let clean = text;
 
-  // Remplacement des drapeaux fréquents par leurs noms de pays
-  clean = clean.replace(/🇨🇦/g, "Canada");
-  clean = clean.replace(/🇸🇳/g, "Sénégal");
-  clean = clean.replace(/🇨🇳/g, "Chine");
-  clean = clean.replace(/🇫🇷/g, "France");
-  clean = clean.replace(/🇺🇸/g, "États-Unis");
-  clean = clean.replace(/🇲🇦/g, "Maroc");
-  clean = clean.replace(/🇨🇮/g, "Côte d'Ivoire");
-  clean = clean.replace(/🇬🇧/g, "Royaume-Uni");
-  clean = clean.replace(/🇦🇪/g, "Dubaï / Émirats");
+  // Remplacement intelligent évitant la duplication si le nom suit ou précède le drapeau
+  clean = clean.replace(/🇨🇦\s*Canada|Canada\s*🇨🇦/gi, "Canada").replace(/🇨🇦/g, "Canada");
+  clean = clean.replace(/🇸🇳\s*Sénégal|Sénégal\s*🇸🇳/gi, "Sénégal").replace(/🇸🇳/g, "Sénégal");
+  clean = clean.replace(/🇨🇳\s*Chine|Chine\s*🇨🇳/gi, "Chine").replace(/🇨🇳/g, "Chine");
+  clean = clean.replace(/🇫🇷\s*France|France\s*🇫🇷/gi, "France").replace(/🇫🇷/g, "France");
+  clean = clean.replace(/🇺🇸\s*États-Unis|États-Unis\s*🇺🇸/gi, "États-Unis").replace(/🇺🇸/g, "États-Unis");
+  clean = clean.replace(/🇲🇦\s*Maroc|Maroc\s*🇲🇦/gi, "Maroc").replace(/🇲🇦/g, "Maroc");
+  clean = clean.replace(/🇨🇮\s*Côte d'Ivoire|Côte d'Ivoire\s*🇨🇮/gi, "Côte d'Ivoire").replace(/🇨🇮/g, "Côte d'Ivoire");
+  clean = clean.replace(/🇬🇧\s*Royaume-Uni|Royaume-Uni\s*🇬🇧/gi, "Royaume-Uni").replace(/🇬🇧/g, "Royaume-Uni");
+  clean = clean.replace(/🇦🇪\s*Dubaï|Dubaï\s*🇦🇪/gi, "Dubaï / Émirats").replace(/🇦🇪/g, "Dubaï / Émirats");
 
-  // Remplacement des puces / emojis décoratifs par du texte propre
+  // Remplacement des puces et pictogrammes décoratifs
   clean = clean.replace(/📍/g, "");
   clean = clean.replace(/📞/g, "");
   clean = clean.replace(/✉️|📧/g, "");

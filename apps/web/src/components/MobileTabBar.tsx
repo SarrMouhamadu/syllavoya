@@ -53,7 +53,7 @@ export const MobileTabBar: React.FC = () => {
           isActive: pathname === "/profile",
         },
         {
-          label: "Tableau de bord",
+          label: "Dashboard",
           path: "/dashboard",
           icon: <IconShieldCheck size={24} strokeWidth="1.8" />,
           isActive: pathname === "/dashboard",
@@ -64,7 +64,7 @@ export const MobileTabBar: React.FC = () => {
     if (user.role === "ADMIN") {
       return [
         {
-          label: "Tableau de bord",
+          label: "Dashboard",
           path: "/dashboard",
           icon: <IconShieldCheck size={24} strokeWidth="1.8" />,
           isActive: pathname === "/dashboard",
@@ -82,7 +82,7 @@ export const MobileTabBar: React.FC = () => {
           isActive: pathname === "/messages",
         },
         {
-          label: "Profil & Admin",
+          label: "Admin",
           path: "/profile",
           icon: <IconUser size={24} strokeWidth="1.8" />,
           isActive: pathname === "/profile",

@@ -7,8 +7,6 @@ import {
   IconLogOut,
   IconCreditCard,
   IconChevronDown,
-  IconMenu,
-  IconX,
   IconFileText,
 } from "./Icons";
 

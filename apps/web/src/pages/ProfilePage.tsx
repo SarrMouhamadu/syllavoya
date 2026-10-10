@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { professionalsApi, type ApiProfessional } from "../api/professionals";
 import { usersApi } from "../api/users";
@@ -14,12 +14,20 @@ import {
   IconPlus,
   IconEdit,
   IconX,
+  IconLogOut,
+  IconChevronRight,
 } from "../components/Icons";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { Alert } from "../components/Alert";
 
 export const ProfilePage: React.FC = () => {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   // État pour la modification des informations personnelles
   const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
@@ -628,6 +636,80 @@ export const ProfilePage: React.FC = () => {
             )}
           </div>
         )}
+
+        {/* Section minimale d'accès mobile : Abonnement & Déconnexion */}
+        <div className="profile-card profile-quick-links" style={{ marginTop: "1.5rem" }}>
+          <h2 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "var(--apple-text, #1C1C1E)" }}>
+            Abonnement & Compte
+          </h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <Link
+              to="/subscriptions"
+              className="btn btn-outline"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "12px 16px",
+                borderRadius: "12px",
+                textDecoration: "none",
+                minHeight: "44px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <IconCreditCard size={18} style={{ color: "var(--apple-accent, #0A64D8)" }} />
+                <span>Mon abonnement & Tarifs</span>
+              </div>
+              <IconChevronRight size={16} />
+            </Link>
+
+            {user.role === "VOYAGEUR" && (
+              <Link
+                to="/dashboard"
+                className="btn btn-outline"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "12px 16px",
+                  borderRadius: "12px",
+                  textDecoration: "none",
+                  minHeight: "44px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <IconShieldCheck size={18} style={{ color: "var(--apple-accent, #0A64D8)" }} />
+                  <span>Tableau de bord voyageur</span>
+                </div>
+                <IconChevronRight size={16} />
+              </Link>
+            )}
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="btn"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                padding: "12px 16px",
+                borderRadius: "12px",
+                color: "#D70015",
+                background: "#FEE2E2",
+                border: "none",
+                fontWeight: 600,
+                marginTop: "6px",
+                minHeight: "44px",
+                cursor: "pointer",
+              }}
+            >
+              <IconLogOut size={16} />
+              <span>Se déconnecter</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
