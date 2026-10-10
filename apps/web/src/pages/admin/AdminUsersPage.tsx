@@ -13,8 +13,6 @@ import {
   IconPhone,
   IconTrash,
   IconShieldCheck,
-  IconClock,
-  IconCheck,
   IconAlertTriangle,
   IconEye,
   IconX,
